@@ -1,29 +1,35 @@
 # PHPFullCalendar
 
-Application web de gestion de calendriers partagés. Interface basée sur [FullCalendar.js](https://fullcalendar.io/), backend PHP avec une base de données MySQL et une authentification LDAP.
+Web application for shared calendar management. Frontend based on [FullCalendar.js](https://fullcalendar.io/), PHP backend with a MySQL database.
 
-## Fonctionnalités
+The application does not handle authentication, groups or user information itself. External sources are required for that, configurable in `config.php`. (Currently only LDAP sources are supported.)
 
-- Création et gestion de calendriers
-- Événements : création, modification, suppression, export ICS
-- Authentification LDAP multi-sources
-- Contrôle d'accès à deux niveaux :
-  - **droits globaux** (bitmask) : créer/supprimer des calendriers, gérer les ressources, administrer les droits
-  - **droits par calendrier** (niveaux 1–4) : disponibilités, lecture, écriture, administration
-- Droits attribuables à des utilisateurs, groupes ou entrées spéciales (`anonymous`, `authenticated`)
-- Interface multilingue (français, anglais)
+## Features
 
-## Prérequis
+- Calendar creation and management
+- Events: create, edit, delete, ICS export
+- Multi-source authentication / groups / user informations (LDAP for now)
+- Two-level access control:
+  - **global rights** (bitmask): create/delete calendars, manage resources, administer rights
+  - **per-calendar rights** (levels 1–4): free/busy, read, write, admin
+- Rights assignable to users, groups or special entries (`anonymous`, `authenticated`)
+- Multilingual interface (French, English)
+
+## Planned evolutions
+
+- recuring events
+- resources managment (rooms, material...)
+
+## Requirements
 
 - PHP 8.1+
 - MySQL / MariaDB
-- Apache avec `mod_rewrite`
-- Memcached (gestion des sessions)
-- Serveur LDAP (authentification)
+- Apache / nginx (not tested)
+- Memcached (session storage) (other session storage planned)
 
 ## Installation
 
-### 1. Base de données
+### 1. Database
 
 ```sql
 mysql -u root -p < schema.sql
@@ -31,11 +37,11 @@ mysql -u root -p < schema.sql
 
 ### 2. Configuration
 
-Copier `config.php.example` en `config.php` et adapter :
+Copy `config.php.example` to `config.php` and adjust:
 
 ```php
 return [
-    'secure' => true,                   // forcer HTTPS
+    'secure' => true,                   // enforce HTTPS
     'timezone' => 'Europe/Paris',
     'database' => [
         'driver' => 'mysql',
@@ -86,7 +92,7 @@ return [
     ],
     'groups' => [
         'ldap' => [
-            // configuration optionnelle pour la résolution des groupes LDAP
+            // optional configuration for LDAP group resolution
         ]
     ]
 ];
@@ -95,10 +101,10 @@ return [
 ### 3. Apache
 
 ```apache
-# Assets statiques
+# Static assets
 Alias /public/ /var/www/phpfullcalendar/public/
 
-# Tout le reste passe par http.php
+# Everything else goes through http.php
 AliasMatch ^(?!/public/).*$ /var/www/phpfullcalendar/http.php
 
 <Directory /var/www/phpfullcalendar>
@@ -108,83 +114,83 @@ AliasMatch ^(?!/public/).*$ /var/www/phpfullcalendar/http.php
 </Directory>
 ```
 
-Le fichier `http.php` assure lui-même le routage : l'URL `/Controller/method/parameters` est traduite en appel de méthode `_<verb>_<method>()` sur la classe `Controllers\<Controller>`.
+`http.php` handles routing itself: the URL `/Controller/method/parameters` is translated into a call to `_<verb>_<method>()` on the class `Controllers\<Controller>`.
 
 ## Structure
 
 ```
 .
-├── config.php              # configuration (non versionné)
-├── config.php.example      # modèle de configuration
-├── http.php                # point d'entrée unique + routeur
-├── schema.sql              # schéma MySQL
+├── config.php              # configuration (not versioned)
+├── config.php.example      # configuration template
+├── http.php                # single entry point + router
+├── schema.sql              # MySQL schema
 ├── public/
 │   ├── scripts/
-│   │   └── PHPFullCalendar.js   # application JS (ESM/IIFE)
+│   │   └── PHPFullCalendar.js   # JS application (IIFE)
 │   └── styles/
 │       └── main.css
 ├── src/PHPFullCalendar/
-│   ├── Controllers/        # un fichier par contrôleur
-│   ├── Database/           # couche d'accès aux données (PDO)
+│   ├── Controllers/        # one file per controller
+│   ├── Database/           # data access layer (PDO)
 │   ├── Views/              # Json, Ok, BadRequest, Ics, Template…
-│   ├── Authentications/    # LDAP (implémente AuthenticationInterface)
-│   ├── Informations/       # récupération des attributs utilisateur
-│   ├── Groups/             # résolution des groupes
-│   └── _.php               # classe utilitaire centrale (autoload, config, PDO…)
+│   ├── Authentications/    # LDAP (implements AuthenticationInterface)
+│   ├── Informations/       # user attribute retrieval
+│   ├── Groups/             # group resolution
+│   └── _.php               # central utility class (autoload, config, PDO…)
 ├── templates/
-│   └── index.php           # unique vue HTML
+│   └── index.php           # single HTML view
 └── translations/
     ├── fr.php
     └── en.php
 ```
 
-## API HTTP
+## HTTP API
 
-L'authentification de session se fait via `/Authenticate/login` (POST). Les routes sans session utilisent le préfixe `/$` avec Basic Auth (`source.login:password`).
+Session authentication is done via `/Authenticate/login` (POST). Sessionless routes use the `/$` prefix with Basic Auth (`source.login:password`).
 
-| Méthode | URL | Description |
-|---------|-----|-------------|
-| GET | `/Calendar/catalog` | liste des calendriers |
-| POST | `/Calendar/create` | créer un calendrier |
-| POST | `/Calendar/update/<id>` | modifier un calendrier |
-| GET | `/Calendar/delete/<id>` | supprimer un calendrier |
-| GET | `/Event/list/<calendar_id>?start=…&end=…` | événements (format FullCalendar) |
-| POST | `/Event/create/<calendar_id>` | créer un événement |
-| POST | `/Event/update/<id>` | modifier un événement |
-| GET | `/Event/delete/<id>` | supprimer un événement |
-| GET | `/Event/ics/<calendar_id>` | export ICS |
-| GET | `/Authorization/global` | droits globaux de l'utilisateur courant |
-| GET | `/Authorization/calendar/<id>` | niveau d'accès sur un calendrier |
-| GET/POST/DELETE | `/Authorization/globalacl` | gestion des droits globaux |
-| GET/POST/DELETE | `/Authorization/calendaracl/<id>` | gestion des droits par calendrier |
+| Method | URL | Description |
+|--------|-----|-------------|
+| GET | `/Calendar/catalog` | list calendars |
+| POST | `/Calendar/create` | create a calendar |
+| POST | `/Calendar/update/<id>` | update a calendar |
+| GET | `/Calendar/delete/<id>` | delete a calendar |
+| GET | `/Event/list/<calendar_id>?start=…&end=…` | events (FullCalendar format) |
+| POST | `/Event/create/<calendar_id>` | create an event |
+| POST | `/Event/update/<id>` | update an event |
+| GET | `/Event/delete/<id>` | delete an event |
+| GET | `/Event/ics/<calendar_id>` | ICS export |
+| GET | `/Authorization/global` | current user's global rights |
+| GET | `/Authorization/calendar/<id>` | access level on a calendar |
+| GET/POST/DELETE | `/Authorization/globalacl` | manage global rights |
+| GET/POST/DELETE | `/Authorization/calendaracl/<id>` | manage per-calendar rights |
 
-## Modèle de droits
+## Access control model
 
-### Droits globaux (bitmask)
+### Global rights (bitmask)
 
-| Valeur | Constante | Description |
-|--------|-----------|-------------|
-| 1 | `GR_CAL_CREATE` | créer des calendriers |
-| 2 | `GR_CAL_DESTROY` | supprimer des calendriers |
-| 4 | `GR_RES_ADD` | ajouter des ressources |
-| 8 | `GR_RES_DEL` | supprimer des ressources |
-| 16 | `GR_ACL` | gérer les droits globaux |
+| Value | Constant | Description |
+|-------|----------|-------------|
+| 1 | `GR_CAL_CREATE` | create calendars |
+| 2 | `GR_CAL_DESTROY` | delete calendars |
+| 4 | `GR_RES_ADD` | add resources |
+| 8 | `GR_RES_DEL` | delete resources |
+| 16 | `GR_ACL` | manage global rights |
 
-### Droits par calendrier (niveaux)
+### Per-calendar rights (levels)
 
-| Niveau | Constante | Description |
-|--------|-----------|-------------|
-| 1 | `CAL_FREE_BUSY` | voir les disponibilités |
-| 2 | `CAL_READ` | lire les événements |
-| 3 | `CAL_WRITE` | créer/modifier/supprimer des événements |
-| 4 | `CAL_ACL` | gérer les droits du calendrier |
+| Level | Constant | Description |
+|-------|----------|-------------|
+| 1 | `CAL_FREE_BUSY` | view free/busy information |
+| 2 | `CAL_READ` | read events |
+| 3 | `CAL_WRITE` | create/edit/delete events |
+| 4 | `CAL_ACL` | manage calendar rights |
 
-Les droits sont attribuables à :
-- un **utilisateur** (`type=user`, `source=<source_auth>`, `identifier=<login>`)
-- un **groupe** (`type=group`)
-- une entrée **spéciale** (`type=special`) : `anonymous` (source vide) pour tout le monde, `authenticated` pour les utilisateurs connectés
+Rights can be assigned to:
+- a **user** (`type=user`, `source=<auth_source>`, `identifier=<login>`)
+- a **group** (`type=group`)
+- a **special** entry (`type=special`): `anonymous` (empty source) for everyone, `authenticated` for logged-in users
 
-## Dépendances frontend
+## Frontend dependencies
 
 - [FullCalendar.js](https://fullcalendar.io/) 6.1.15
 - [Bootstrap](https://getbootstrap.com/) 5
