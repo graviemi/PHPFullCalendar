@@ -1,0 +1,86 @@
+.fc-event,
+.fc-daygrid-day,
+.fc-timegrid-slot {
+	cursor: pointer;
+}
+
+body {
+	height: 100vh;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+#main-container {
+	flex: 1;
+	min-height: 0;
+}
+
+.sidebar {
+	width: 250px;
+	min-width: 250px;
+}
+
+#calendarsList input[type="radio"] {
+	display: none;
+}
+
+#calendarsList .calendar-item {
+	display: block;
+	padding: .4rem .75rem;
+	cursor: pointer;
+	border-radius: .375rem;
+	color: var(--bs-body-color);
+}
+
+#calendarsList input[type="radio"]:checked + .calendar-item {
+	background-color: var(--bs-primary);
+	color: #fff;
+	font-weight: 600;
+}
+
+.no_calendar {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+	font-size: 2rem;
+	font-weight: bold;
+	color: #cccccc;
+}
+
+#pfc-tooltip {
+	position: fixed;
+	background: rgba(0,0,0,.75);
+	color: #fff;
+	padding: .3rem .6rem;
+	border-radius: .3rem;
+	font-size: .85rem;
+	max-width: 250px;
+	pointer-events: none;
+	white-space: pre-wrap;
+	z-index: 9999;
+	display: none;
+}
+
+button[disabled] {
+	display: none;
+}
+
+div[data-hidden] {
+	display: none;
+}
+
+div.acl_checkboxes input {
+	display: none;
+}
+
+div.acl_checkboxes label {
+	margin-right: 1em;
+	cursor: pointer;
+	color: #dee2e6;
+}
+
+div.acl_checkboxes label:has(> input:checked) {
+	color: #0d6efd;
+}

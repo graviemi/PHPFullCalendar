@@ -1,0 +1,52 @@
+<?php
+
+return [
+	'secure' => true, // true = force https use
+	'http-headers' => [
+		'Access-Control-Allow-Origin:  http://michel/',
+		'Access-Control-Allow-Methods: GET, POST',
+		'Access-Control-Allow-Headers: Content-Type',
+		'Access-Control-Allow-Credentials: true'
+	], // additional HTTP headers
+	'authentication' => [
+		'method' => 'LDAP',
+		'parameters' => [
+			'host' => 'ldap://ldap.osug.fr:389',
+			'startTLS' => true,
+			'bindDN' => 'uid=%s,ou=people,ou=osug-tous,dc=osug,dc=fr'
+		],
+	'information' => [
+		'method' => 'LDAP',
+		'parameters' => [
+			'host' => 'ldap://ldap.osug.fr:389',
+			'startTLS' => false,
+			'base' => 'ou=people,ou=osug-tous,dc=osug,dc=fr',
+			'filter' => '(&(uid=%s)(objectClass=posixAccount))',
+			'attributes' => ['cn','mail'],
+			'name' => 'cn',
+			'email' => 'mail'
+		],
+	]
+	'session' = [
+		'cookie' => [
+			'name' => 'pfc_session',
+			'ttl' => 3600,
+			'path' => '/',
+			'domain' => 'pfc.osug.fr',
+			'secure' => true,
+			'httpOnly' => true
+		]
+		'handler' => [
+			'memcached',[
+				'port' => 11211,
+				'prefix' => 'pfc_'
+			],
+		]
+	],
+	'database' => [
+		'host' => 'localhost',
+		'name' => 'phpFullCalendar',
+		'user' => 'pfc',
+		'pass' => 'pfc'
+	]
+];
