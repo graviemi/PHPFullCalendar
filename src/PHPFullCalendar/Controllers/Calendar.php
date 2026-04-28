@@ -9,7 +9,7 @@ use ArrayObject,
 	PHPFullCalendar\Database\Calendar as CalendarDB,
 	PHPFullCalendar\Views\Json,
 	PHPFullCalendar\Views\Ok,
-	PHPFullCalendar\Views\Forbidden,
+	PHPFullCalendar\Views\BadRequest,
 	PHPFullCalendar\Views\NotFound;
 
 class Calendar extends ControllerAbstract
@@ -22,7 +22,7 @@ class Calendar extends ControllerAbstract
 			return _::denyAccess();
 		$name = $_POST['calendarName'] ?? null;
 		if ($name === null)
-			return new Forbidden('name is required');
+			return new BadRequest('name is required');
 		$db = new CalendarDB(_::getPDO());
 		$calendar_id = $db->createCalendar($name, $_POST['calendarDescription'] ?? null);
 		$data = _::getUserData();
@@ -53,7 +53,7 @@ class Calendar extends ControllerAbstract
 			return new NotFound();
 		$name = $_POST['name'] ?? null;
 		if ($name === null)
-			return new Forbidden('name is required');
+			return new BadRequest('name is required');
 		$db = new CalendarDB(_::getPDO());
 		if ($db->getCalendar((int) $matches[1]) === false)
 			return new NotFound();

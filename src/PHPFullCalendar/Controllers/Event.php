@@ -8,7 +8,7 @@ use PHPFullCalendar\_,
 	PHPFullCalendar\Views\Json,
 	PHPFullCalendar\Views\Ics,
 	PHPFullCalendar\Views\Ok,
-	PHPFullCalendar\Views\Forbidden,
+	PHPFullCalendar\Views\BadRequest,
 	PHPFullCalendar\Views\NotFound;
 
 class Event extends ControllerAbstract
@@ -27,7 +27,7 @@ class Event extends ControllerAbstract
 		$title = $_POST['eventTitle'] ?? null;
 		$startStr = $_POST['eventStart'] ?? null;
 		if ($title === null || $startStr === null)
-			return new Forbidden('title and start are required');
+			return new BadRequest(_::_('title_and_start_required'));
 
 		$start = (int)(strtotime($startStr) / 60);
 
@@ -53,6 +53,49 @@ class Event extends ControllerAbstract
 		return new Json(['event_id' => $event_id]);
 	}
 
+	public function _post_update()
+	{
+		if (! preg_match('|^(\d+)$|', $this->parameters, $matches))
+			return new NotFound();
+		$event_id = (int) $matches[1];
+
+		$db = new CalendarDB(_::getPDO());
+		$event = $db->getEvent($event_id);
+		if ($event === false)
+			return new NotFound();
+
+		$acl = new ACL(_::getPDO());
+		if ($acl->getCalendarAuthorization($event['calendar_id'], _::getUserData()) < ACL::CAL_WRITE)
+			return _::denyAccess();
+
+		$title = $_POST['eventTitle'] ?? null;
+		$startStr = $_POST['eventStart'] ?? null;
+		if ($title === null || $startStr === null)
+			return new BadRequest(_::_('title_and_start_required'));
+
+		$start = (int)(strtotime($startStr) / 60);
+
+		$duration = null;
+		if (! empty($_POST['eventEnd']))
+		{
+			$end = (int)(strtotime($_POST['eventEnd']) / 60);
+			$duration = $end - $start;
+		}
+
+		$db->updateEvent(
+			$event_id,
+			$start,
+			$title,
+			$duration,
+			null,
+			null,
+			$_POST['eventDescription'] ?? null,
+			$_POST['eventUrl'] ?? null
+		);
+
+		return new Ok();
+	}
+
 	public function _get_delete()
 	{
 		if (! preg_match('|^(\d+)$|', $this->parameters, $matches))
@@ -72,7 +115,7 @@ class Event extends ControllerAbstract
 		return new Ok();
 	}
 
-	public function _get_events()
+	public function _get_list()
 	{
 		if (! preg_match('|^(\d+)$|', $this->parameters, $matches))
 			return new NotFound();
@@ -85,7 +128,7 @@ class Event extends ControllerAbstract
 		$start = isset($_GET['start']) ? (int)(strtotime($_GET['start']) / 60) : null;
 		$end   = isset($_GET['end'])   ? (int)(strtotime($_GET['end'])   / 60) : null;
 		if ($start === null || $end === null)
-			return new Forbidden('start and end parameters are required');
+			return new BadRequest('start and end parameters are required');
 
 		$db = new CalendarDB(_::getPDO());
 		$events = $db->getEvents($calendar_id, $start, $end);

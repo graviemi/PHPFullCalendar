@@ -3,4 +3,4 @@
 /deploie
 /rsync-exclude.txt
 /sync.sh
-/error.log
+/logs

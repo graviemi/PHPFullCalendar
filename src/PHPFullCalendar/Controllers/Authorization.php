@@ -6,7 +6,7 @@ use PHPFullCalendar\_,
 	PHPFullCalendar\Database\ACL,
 	PHPFullCalendar\Views\Json,
 	PHPFullCalendar\Views\Ok,
-	PHPFullCalendar\Views\Forbidden,
+	PHPFullCalendar\Views\BadRequest,
 	PHPFullCalendar\Views\NotFound;
 
 class Authorization extends ControllerAbstract
@@ -36,15 +36,16 @@ class Authorization extends ControllerAbstract
 
 	protected function _post_globalacl()
 	{
+		$userData = _::getUserData();
 		$acl = new ACL(_::getPDO());
-		if (($acl->getGlobalAuthorization(_::getUserData()) & ACL::GR_ACL) === 0)
+		if (($acl->getGlobalAuthorization($userData) & ACL::GR_ACL) === 0)
 			return _::denyAccess();
-
 		$source = $_POST['source'] ?? '';
 		$identifier = trim($_POST['identifier'] ?? '');
 		$type = $_POST['type'] ?? '';
 		$authorization = (int)($_POST['authorization'] ?? 0);
-
+		if (($identifier === $userData['user_id']) && ($type === 'user'))
+			return new BadRequest(_::_('should_not_modify_own_acl'));
 		if (! in_array($source,_::$sources))
 			return new BadRequest(_::_('unknown_source'));
 		if (strlen($identifier) === 0 || strlen($identifier) > 255)
@@ -60,18 +61,22 @@ class Authorization extends ControllerAbstract
 
 	protected function _delete_globalacl()
 	{
+		$userData = _::getUserData();
 		$acl = new ACL(_::getPDO());
-		if (($acl->getGlobalAuthorization(_::getUserData()) & ACL::GR_ACL) === 0)
+		if (($acl->getGlobalAuthorization($userData) & ACL::GR_ACL) === 0)
 			return _::denyAccess();
-
 		parse_str(file_get_contents('php://input'), $body);
 		$source = $body['source'] ?? '';
 		$identifier = $body['identifier'] ?? '';
 		$type = $body['type'] ?? '';
-
-		if ($identifier === '' || ! in_array($type, ['user', 'group', 'special']))
-			return new Forbidden('invalid parameters');
-
+		if (($identifier === $userData['user_id']) && ($type === 'user'))
+			return new BadRequest(_::_('should_not_modify_own_acl'));
+		if (! in_array($source,_::$sources))
+			return new BadRequest(_::_('unknown_source'));
+		if (strlen($identifier) === 0 || strlen($identifier) > 255)
+			return new BadRequest(_::_('identifier_must_not_be_empty'));
+		if (! in_array($type, ['user', 'group', 'special']))
+			return new BadRequest(_::_('unknown_type'));
 		$acl->deleteGlobalACL($source, $identifier, $type);
 		return new Ok();
 	}
@@ -96,17 +101,22 @@ class Authorization extends ControllerAbstract
 		if (! preg_match('|^(\d+)$|', $this->parameters, $matches))
 			return new NotFound();
 		$calendar_id = (int) $matches[1];
+		$userData = _::getUserData();
 		$acl = new ACL(_::getPDO());
-		if ($acl->getCalendarAuthorization($calendar_id, _::getUserData()) < ACL::CAL_ACL)
+		if ($acl->getCalendarAuthorization($calendar_id, $userData) < ACL::CAL_ACL)
 			return _::denyAccess();
-
 		$source = $_POST['source'] ?? '';
 		$identifier = trim($_POST['identifier'] ?? '');
 		$type = $_POST['type'] ?? '';
 		$level = (int)($_POST['authorization'] ?? 0);
-
-		if ($identifier === '' || ! in_array($type, ['user', 'group', 'special']) || $level < 1 || $level > 4)
-			return new Forbidden('invalid parameters');
+		if (($identifier === $userData['user_id']) && ($type === 'user'))
+			return new BadRequest(_::_('should_not_modify_own_acl'));
+		if ($identifier === '')
+			return new BadRequest(_::_('identifier_must_not_be_empty'));
+		if (! in_array($type, ['user', 'group', 'special']))
+			return new BadRequest(_::_('unknown_type'));
+		if ($level < 1 || $level > 4)
+			return new BadRequest(_::_('wrong_authorization'));
 
 		$acl->setCalendarAuthorization($calendar_id, $source, $identifier, $type, $level);
 		return new Ok();
@@ -117,18 +127,20 @@ class Authorization extends ControllerAbstract
 		if (! preg_match('|^(\d+)$|', $this->parameters, $matches))
 			return new NotFound();
 		$calendar_id = (int) $matches[1];
+		$userData = _::getUserData();
 		$acl = new ACL(_::getPDO());
-		if ($acl->getCalendarAuthorization($calendar_id, _::getUserData()) < ACL::CAL_ACL)
+		if ($acl->getCalendarAuthorization($calendar_id, $userData) < ACL::CAL_ACL)
 			return _::denyAccess();
-
 		parse_str(file_get_contents('php://input'), $body);
 		$source = $body['source'] ?? '';
 		$identifier = $body['identifier'] ?? '';
 		$type = $body['type'] ?? '';
-
-		if ($identifier === '' || ! in_array($type, ['user', 'group', 'special']))
-			return new Forbidden('invalid parameters');
-
+		if (($identifier === $userData['user_id']) && ($type === 'user'))
+			return new BadRequest(_::_('should_not_modify_own_acl'));
+		if ($identifier === '')
+			return new BadRequest(_::_('identifier_must_not_be_empty'));
+		if (! in_array($type, ['user', 'group', 'special']))
+			return new BadRequest(_::_('unknown_type'));
 		$acl->deleteCalendarACL($calendar_id, $source, $identifier, $type);
 		return new Ok();
 	}

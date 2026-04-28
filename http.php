@@ -17,7 +17,7 @@ class _
 	const     ERROR = 500;
 
 	const CONF_FILE = 'config.php';
-	const LOG_FILE = 'error.log';
+	const LOG_FILE = 'logs/error.log';
 
 	protected static array $_errors = [
 		E_USER_ERROR => 'user error',
@@ -168,7 +168,7 @@ class _
 	public static function init()
 	{
 		self::$root = __DIR__;
-		self::$conf = require($_SERVER['PFC_CONFIG_PATH'] ?? self::$root.self::CONF_FILE);
+		self::$conf = require($_SERVER['PFC_CONFIG_PATH'] ?? self::$root.'/'.self::CONF_FILE);
 		self::$sources = [''];
 		foreach (_::$conf['authentication'] as $source => $data)
 					self::$sources[] = $source;

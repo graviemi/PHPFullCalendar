@@ -73,7 +73,7 @@ PHPFullCalendar = (function ()
 	function _getUserInformations()
 	{
 		_request('/User/Informations', {}).then(response => {
-			if (response === null || ! response.ok)
+			if (response === null)
 				return;
 			response.json().then(infos => {
 				_user_infos = infos;
@@ -81,7 +81,7 @@ PHPFullCalendar = (function ()
 			});
 		});
 		_request('/Authorization/global', {}).then(response => {
-			if (response === null || ! response.ok)
+			if (response === null)
 				return;
 			response.json().then(auth => {
 				_globalsAuth = auth;
@@ -103,7 +103,7 @@ PHPFullCalendar = (function ()
 	async function _refreshCalendarsList()
 	{
 		const response = await _request('/Calendar/catalog');
-		if (response === null || ! response.ok)
+		if (response === null)
 			return;
 		const calendars = await response.json();
 		const list = document.getElementById('calendarsList');
@@ -147,7 +147,7 @@ PHPFullCalendar = (function ()
 			return;
 		}
 		const response = await _request(`/Authorization/calendar/${_calendar_id}`);
-		_calendarAuth = (response !== null && response.ok) ? await response.json() : 0;
+		_calendarAuth = response !== null ? await response.json() : 0;
 		_enable('addEventBtn', _calendarAuth >= 3);
 		_enable('editCalendarBtn', _calendarAuth >= 3);
 		_enable('manageCalendarAclBtn', _calendarAuth >= 4);
@@ -155,7 +155,7 @@ PHPFullCalendar = (function ()
 		calendar.removeAttribute('data-hidden');
 		no_calendar.setAttribute('data-hidden', 'true');
 		_calendar.removeAllEventSources();
-		_calendar.addEventSource({ url: `/Event/events/${_calendar_id}` });
+		_calendar.addEventSource({ url: `/Event/list/${_calendar_id}` });
 		_calendar.render();
 	}
 
@@ -236,47 +236,45 @@ PHPFullCalendar = (function ()
 		return select;
 	}
 
-	function _selectElement({options, attrs = {}})
+	function _selectElement({options, value, onchange})
 	{
 		return _el({
 			tag: 'select',
-			attrs: attrs,
+			attrs: {name: 'level'},
 			content: options.map((option) => {
 				return {
 					tag: 'option',
-					attrs: { value: option[0] },
+					attrs: {
+						value: option[0],
+						selected: option[0] === value
+					},
 					content: option[1]
 				}
-			})
+			}),
+			events: {change: onchange}
 		});
 	}
 
-	async function _addSpecialCalendarAcl(element)
+	async function _calendarAclSave(data)
 	{
-	}
-
-	async function _addCalendarAcl(element)
-	{
-		const body = {};
-		const fields = element.querySelectorAll('[name]');
-		fields.forEach((field) => {body[field.name] = field.value});
-		if (body['identifier'] === '')
-		{
-			return;
-		}
 		const resp = await _request(`/Authorization/calendaracl/${_calendar_id}`,
 		{
 			method: 'POST',
 			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-			body: new URLSearchParams(body)
+			body: new URLSearchParams(data)
 		});
-		if (resp && resp.ok)
-			_loadCalendarAcl();
-		else
-			swal({ title: _('error'), icon: 'error' });
+		_calendarAclLoad();
 	}
 
-	async function _removeCalendarACL(source, identifier, type)
+	async function _calendarAclUpdate(event)
+	{
+		const tr = event.target.closest('tr');
+		const data = tr.dataset;
+		data.authorization = tr.querySelector('[name=level]').value;
+		_calendarAclSave(data);
+	}
+
+	async function _calendarAclDelete(key)
 	{
 		const confirmed = await swal({
 			title: _('confirm_delete_acl'),
@@ -290,113 +288,61 @@ PHPFullCalendar = (function ()
 		{
 			method: 'DELETE',
 			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-			body: new URLSearchParams({ source: source, identifier: identifier, type: type })
+			body: new URLSearchParams(key)
 		});
-		if (response && response.ok)
-			_loadCalendarAcl();
-		else
-			swal({ title: _('error'), icon: 'error' });
+		_calendarAclLoad();
 	}
 
-	function _appendCalendarAclFields(container, list, handler)
-	{
-		for (element of list)
-		{
-			container.appendChild(_el({
-				tag: 'div',
-				attrs: { class: 'col-auto' },
-				content: [
-					{
-						tag: 'label',
-						attrs: { class: 'form-label' },
-						content: element[0]
-					},
-					element[1]
-				]
-			}));
-		}
-		container.appendChild(_el({
-			tag: 'div',
-			attrs: { class: 'col-auto'},
-			content: {
-				tag: 'button',
-				attrs: {
-					type: 'button',
-					class: 'btn btn-primary',					
-				},
-				content: _('acl_add'),
-				events: {
-					click: handler
-				}
-			}
-		}));
-	}
-
-	async function _loadCalendarAcl()
+	async function _calendarAclLoad()
 	{
 		const resp = await _request(`/Authorization/calendaracl/${_calendar_id}`);
-		if (resp === null || ! resp.ok)
+		if (resp === null)
 			return;
 		const acls = await resp.json();
 		const special = acls.filter((acl) => {return acl.type === 'special'});
 		const tbodySpecial = document.getElementById('calendarSpecialAclList');
 		tbodySpecial.innerHTML = '';
 		if (special.length === 0)
-		{
 			tbodySpecial.innerHTML = `<tr><td colspan="5" class="text-center text-muted">${_('no_acl')}</td></tr>`;
-			return;
-		}
-		for (const acl of special)
+		else
 		{
-			const tr = _el({
-				tag: 'tr',
-				content: [
-					{ tag: 'td', content: (acl.identifier === 'anonymous')?_('anonymous'):`${_(connected)} (${(acl.source === '')?_('all'):acl.source})`},
-					{ tag: 'td', content: _levels[acl.authorization][1]},
-					{
-						tag: 'td',
-						content: {
-							tag: 'button',
-							attrs: {class: 'btn btn-sm btn-outline-danger'},
-							content: [
-								{tag: 'i', attrs: { class: 'bi bi-trash' } }	
-							],
-							events: {
-								click: async function() { _removeCalendarACL(acl.source,acl.identifier,acl.type) }
+			for (const acl of special)
+			{
+				const tr = _el({
+					tag: 'tr',
+					attrs: {
+						'data-source': acl.source,
+						'data-identifier': acl.identifier,
+						'data-type': acl.type
+					},
+					content: [
+						{ tag: 'td', content: (acl.identifier === 'anonymous')?_('anonymous'):`${_(connected)} (${(acl.source === '')?_('all'):acl.source})`},
+						{ 
+							tag: 'td', 
+							content: _selectElement({
+								options: _levels,
+								value: acl.authorization,
+								onchange: function (event) { _calendarAclUpdate(event) }
+							})
+						},
+						{
+							tag: 'td',
+							content: {
+								tag: 'button',
+								attrs: {class: 'btn btn-sm btn-outline-danger'},
+								content: [
+									{tag: 'i', attrs: { class: 'bi bi-trash' } }	
+								],
+								events: {
+									click: async function(event) { _calendarAclDelete(event.target.closest('tr').dataset) }
+								}
 							}
 						}
-					}
-				]
-			});
-			tbodySpecial.appendChild(tr);
+					]
+				});
+				tbodySpecial.appendChild(tr);
+			}
 		}
-		let form = document.getElementById('calendarSpecialAclForm');
-		const specialOptions = [
-			['anonymous',_('anonymous')],
-			['connected',`${_('connected')} (${_('all')})`]
-		];
-		for (source of _sources)
-			specialOptions.push([`connected_${source[0]}`,`${_('connected')} (${source[0]})`]);
-		_appendCalendarAclFields(
-			form,
-			[
-				[
-					_('type_of_user'),
-					_selectElement({
-						options : specialOptions,
-						attrs: { class: 'form-select', name: 'user_type' }
-					})
-				],
-				[
-					_('acl_authorization'),
-					_selectElement({
-						options: _levels,
-						attrs: { class: 'form-select', name: 'authorization'}
-					})
-				]
-			],
-			function () { _addSpecialCalendarAcl(form) }
-		);
 		const regular = acls.filter((acl) => {return acl.type !== 'special'});
 		const tbody = document.getElementById('calendarAclList');
 		tbody.innerHTML = '';
@@ -409,92 +355,38 @@ PHPFullCalendar = (function ()
 		{
 			const tr = _el({
 				tag: 'tr',
+				attrs: {
+					'data-source': acl.source,
+					'data-identifier': acl.identifier,
+					'data-type': acl.type
+				},
 				content: [
 					{ tag: 'td', content: acl.source },
 					{ tag: 'td', content: acl.identifier},
 					{ tag: 'td', content: _('type_' + acl.type)},
-					{ tag: 'td', content: _levels[acl.authorization][1]},
+					{ 
+						tag: 'td', 
+						content: _selectElement({
+							options: _levels.slice(1),
+							value: acl.authorization,
+							onchange: function (event) { _calendarAclUpdate(event) }
+						})
+					},
 					{
 						tag: 'td',
-						content: [
-							{
-								tag: 'button',
-								attrs: {class: 'btn btn-sm btn-outline-danger'},
-								content: [
-									{tag: 'i', attrs: { class: 'bi bi-trash' } }	
-								],
-								events: {
-									click: async function() { _removeCalendarACL(acl.source,acl.identifier,acl.type) }
-								}
+						content: {
+							tag: 'button',
+							attrs: {class: 'btn btn-sm btn-outline-danger'},
+							content: {tag: 'i', attrs: { class: 'bi bi-trash' } },
+							events: {
+								click: async function() { _calendarAclDelete(event.target.closest('tr').dataset) }
 							}
-						]
+						}
 					}
 				]
 			});
 			tbody.appendChild(tr);
 		}
-		form = document.getElementById('calendarAclForm');
-		elements = [
-			[
-				_('acl_source'),
-				_selectElement({
-					options: _sources,
-					attrs: { class: 'form-select', name: 'source' }
-				})
-			],
-			[
-				_('acl_identifier'),
-				_el({
-					tag: 'input',
-					attrs: {type: 'text', class: 'form-control', name: 'identifier', placeholder: _('user_id_or_group_id')},
-				})
-			],
-			[
-				_('acl_type'),
-				_selectElement({
-					options : [ ['user',_('user')], ['group',_('group')] ],
-					attrs: { class: 'form-select', name: 'type' }
-				})
-			],
-			[
-				_('acl_authorization'),
-				_selectElement({
-					options: _levels.slice(1),
-					attrs: { class: 'form-select', name: 'authorization'}
-				})
-			]
-		];
-
-		for (element of elements)
-		{
-			form.appendChild(_el({
-				tag: 'div',
-				attrs: { class: 'col-auto' },
-				content: [
-					{
-						tag: 'label',
-						attrs: { class: 'form-label' },
-						content: element[0]
-					},
-					element[1]
-				]
-			}));
-		}
-		form.appendChild(_el({
-			tag: 'div',
-			attrs: { class: 'col-auto'},
-			content: {
-				tag: 'button',
-				attrs: {
-					type: 'button',
-					class: 'btn btn-primary',					
-				},
-				content: _('acl_add'),
-				events: {
-					click: function () { _addCalendarAcl(form) }
-				}
-			}
-		}));
 	}
 
 	function _globalACLCheck(acl,changeHandler)
@@ -506,8 +398,6 @@ PHPFullCalendar = (function ()
 			let key = `val${b}`;
 			children.push({
 				tag: 'label',
-				attrs: {
-				},
 				content: [
 					{
 						tag: 'i',
@@ -546,8 +436,7 @@ PHPFullCalendar = (function ()
 			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
 			body: new URLSearchParams(data)
 		});
-		if (r !== null)
-			_globalAclLoad();
+		_globalAclLoad();
 	}
 
 	async function _globalAclDelete(key)
@@ -565,8 +454,7 @@ PHPFullCalendar = (function ()
 			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
 			body: new URLSearchParams(key)
 		});
-		if (r !== null)
-			_globalAclLoad();
+		_globalAclLoad();
 	}
 
 	function _getAuthorization(element)
@@ -592,7 +480,7 @@ PHPFullCalendar = (function ()
 	async function _globalAclLoad()
 	{
 		const resp = await _request('/Authorization/globalacl');
-		if (resp === null || ! resp.ok)
+		if (resp === null)
 			return;
 		const acls = await resp.json();
 
@@ -624,7 +512,7 @@ PHPFullCalendar = (function ()
 							content: {
 								tag: 'button',
 								attrs: {
-									class: 'btn btn-outline-danger'
+									class: 'btn btn-sm btn-outline-danger'
 								},
 								content: {
 									tag: 'i', 
@@ -681,7 +569,7 @@ PHPFullCalendar = (function ()
 							content: {
 								tag: 'button',
 								attrs: {
-									class: 'btn btn-outline-danger'
+									class: 'btn btn-sm btn-outline-danger'
 								},
 								content: {
 									tag: 'i', 
@@ -708,7 +596,7 @@ PHPFullCalendar = (function ()
 			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
 			body: new URLSearchParams(data)
 		});
-		return response.ok;
+		return response !== null;
 	}
 
 	// constructeur
@@ -786,7 +674,6 @@ PHPFullCalendar = (function ()
 				document.getElementById('eventTitle').value = ev.title;
 				document.getElementById('eventStart').value = _toDateTimeLocal(ev.startStr);
 				document.getElementById('eventEnd').value = _toDateTimeLocal(ev.endStr);
-				document.getElementById('eventAllDay').checked = ev.allDay;
 				document.getElementById('eventUrl').value = ev.url ?? '';
 				document.getElementById('eventDescription').value = ev.extendedProps.description ?? '';
 				document.getElementById('deleteEventBtn').disabled = (_calendarAuth < 3);
@@ -802,15 +689,20 @@ PHPFullCalendar = (function ()
 			document.getElementById('copyStartToEndBtn').addEventListener('click', function () {
 				document.getElementById('eventEnd').value = _toDateTimeLocal(document.getElementById('eventStart').value);
 			});
-			document.getElementById('saveEventBtn').addEventListener('click', self.addEvent);
+			document.getElementById('saveEventBtn').addEventListener('click', self.saveEvent);
 			document.getElementById('deleteEventBtn').addEventListener('click', self.deleteEvent);
 			document.getElementById('loginBtn').addEventListener('click', self.connect);
 			document.getElementById('disconnectBtn').addEventListener('click', self.disconnect);
 			document.getElementById('saveCalendarBtn').addEventListener('click', self.saveCalendar);
 			document.getElementById('manageCalendarAclBtn').addEventListener('click', function ()
 			{
-				_loadCalendarAcl();
+				_calendarAclLoad();
 				_getModal('calendarAcl').show();
+			});
+			document.getElementById('manageGlobalAclBtn').addEventListener('click', function ()
+			{
+				_globalAclLoad();
+				_getModal('globalAcl').show();
 			});
 			document.getElementById('globalAclAddSpecial').addEventListener('click', function (event) {
 				const tr = event.target.closest('tr')
@@ -821,7 +713,6 @@ PHPFullCalendar = (function ()
 					type: 'special',
 					authorization: _getAuthorization(tr.querySelector('.acl_checkboxes'))
 				};
-				console.log(data);
 				_globalAclSave(data);
 			});
 			document.getElementById('globalAclAddRegular').addEventListener('click', function (event) {
@@ -830,13 +721,25 @@ PHPFullCalendar = (function ()
 				const data = {};
 				fields.forEach((field) => {data[field.name] = field.value});
 				data['authorization'] = _getAuthorization(tr.querySelector('.acl_checkboxes'));
-				console.log(data);
 				_globalAclSave(data);
 			});
-			document.getElementById('manageGlobalAclBtn').addEventListener('click', function ()
-			{
-				_globalAclLoad();
-				_getModal('globalAcl').show();
+			document.getElementById('calendarAclAddSpecial').addEventListener('click', function (event) {
+				const tr = event.target.closest('tr');
+				const matches = tr.querySelector('[name=user_type]').value.match(/^([^:]*):(.*)$/);
+				const data = {
+					source: matches[1],
+					identifier: matches[2],
+					type: 'special',
+					authorization: tr.querySelector('[name=authorization]').value
+				};
+				_calendarAclSave(data);
+			});
+			document.getElementById('calendarAclAddRegular').addEventListener('click', function (event) {
+				const tr = event.target.closest('tr');
+				const fields = tr.querySelectorAll('[name]');
+				const data = {};
+				fields.forEach((field) => {data[field.name] = field.value});
+				_calendarAclSave(data);
 			});
 			_checkConnection().then(connected => {
 				if ((! connected) && (! _ask_for_login))
@@ -908,72 +811,32 @@ PHPFullCalendar = (function ()
 		const data = {};
 		for (const field of fields)
 			data[field.id] = field.value;
-		console.log(data);
 		const calendarId = data["calendarId"];
 		delete data["calendarId"];
 		_getModal('calendar').hide();
-		if (((calendarId === "") && _createCalendar(data)) || _updateCalendar(Number(calendarId),data))
-		{
-			swal({
-				title: _('success'),
-				text: _('calendar_created'),
-				icon: 'success'
-			});
+		const ok = (calendarId === "") ? await _createCalendar(data) : await _updateCalendar(Number(calendarId), data);
+		if (ok)
 			_refreshCalendarsList();
-		}
-		else
-			swal({
-				title: _('error'),
-				text: _('calendar_creation_failed'),
-				icon: "error"
-			});
-
 	}
 
-	construct.prototype.addEvent = async function()
+	construct.prototype.saveEvent = async function()
 	{
 		const fields = document.getElementById('eventForm').querySelectorAll('[id]');
 		const data = {};
 		for (const field of fields)
 			data[field.id] = field.value;
-		if (! data['eventTitle'] || ! data['eventStart'])
-		{
-			swal({
-				title: _('error'),
-				text: _('event_missing_title_or_start'),
-				icon: 'error'
-			});
-			return;
-		}
-		const response = await _request(`/Event/create/${_calendar_id}`,
+		const event_id = data['eventId'];
+		const url = event_id ? `/Event/update/${event_id}` : `/Event/create/${_calendar_id}`;
+		const response = await _request(url,
 		{
 			method: 'POST',
 			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
 			body: new URLSearchParams(data)
 		});
-		const result = await response.json();
-		if (response.ok)
-		{
-			_calendar.addEvent({
-				id: result['event_id'],
-				title: eventTitle,
-				start: eventStart,
-				end: eventEnd || null,
-				url: eventUrl || null,
-				allDay: eventAllDay,
-				extendedProps: {
-					description: eventDescription
-				}
-			});
-			_showCalendar();
-			_getModal('event').hide();
-		}
-		else if (response.status === 403)
-			swal({title: _('Forbidden'), icon: 'error'});
-		else if (response.status === 404)
-			swal({title: _('Not Found'), icon: 'error'});
-		else
-			swal({title: _('Error'), icon: 'error'});
+		if (response === null)
+			return;
+		_showCalendar();
+		_getModal('event').hide();
 	}	
 
 	construct.prototype.deleteEvent = async function()
@@ -988,14 +851,11 @@ PHPFullCalendar = (function ()
 		});
 		if (! confirmed) return;
 		const response = await _request(`/Event/delete/${event_id}`);
-		if (response && response.ok)
-		{
-			const ev = _calendar.getEventById(event_id);
-			if (ev) ev.remove();
-			_getModal('event').hide();
-		}
-		else
-			swal({ title: _('error'), icon: 'error' });
+		if (response === null)
+			return;
+		const ev = _calendar.getEventById(event_id);
+		if (ev) ev.remove();
+		_getModal('event').hide();
 	}
 
 	return construct;

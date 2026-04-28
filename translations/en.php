@@ -52,4 +52,10 @@ return [
 	'gr_res_del' => 'delete resources',
 	'gr_acl' => 'manage global rights',
 	'identifier_required' => 'Identifier cannot be empty',
+	'identifier_must_not_be_empty' => 'Identifier cannot be empty',
+	'unknown_source' => 'Unknown source',
+	'unknown_type' => 'Unknown type',
+	'wrong_authorization' => 'Invalid authorization level',
+	'should_not_modify_own_acl' => 'You cannot modify your own rights',
+	'title_and_start_required' => 'Title and start date are required',
 ];

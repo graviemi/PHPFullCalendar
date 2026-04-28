@@ -52,4 +52,10 @@ return [
 	'gr_res_del' => 'supprimer des ressources',
 	'gr_acl' => 'gérer les droits globaux',
 	'identifier_required' => 'L\'identifiant ne peut pas être vide',
+	'identifier_must_not_be_empty' => 'L\'identifiant ne peut pas être vide',
+	'unknown_source' => 'Source inconnue',
+	'unknown_type' => 'Type inconnu',
+	'wrong_authorization' => 'Niveau d\'autorisation invalide',
+	'should_not_modify_own_acl' => 'Vous ne pouvez pas modifier vos propres droits',
+	'title_and_start_required' => 'Le titre et la date de début sont obligatoires',
 ];

@@ -39,28 +39,28 @@ foreach (_::$conf['authentication'] as $source => $data)
 <body>
 	<nav class="navbar bg-body-tertiary px-3">
 		<div class="d-flex gap-2">
-			<button class="btn btn-outline-primary" id="addEventBtn" disabled>
+			<button class="btn btn-sm btn-outline-primary" id="addEventBtn" disabled>
 				<i class="bi bi-calendar-event"></i> <?= _::uf('add_event') ?>
 			</button>
-			<button class="btn btn-outline-primary" id="editCalendarBtn" disabled>
+			<button class="btn btn-sm btn-outline-primary" id="editCalendarBtn" disabled>
 				<i class="bi bi-pencil"></i> <?= _::uf('edit_calendar') ?>
 			</button>
-			<button class="btn btn-outline-danger" id="removeCalendarBtn" disabled>
+			<button class="btn btn-sm btn-outline-danger" id="removeCalendarBtn" disabled>
 				<i class="bi bi-trash"></i> <?= _::uf('remove_calendar') ?>
 			</button>
-			<button class="btn btn-outline-primary" id="manageCalendarAclBtn" disabled>
+			<button class="btn btn-sm btn-outline-primary" id="manageCalendarAclBtn" disabled>
 				<i class="bi bi-person-check"></i> <?= _::uf('manage_calendar_acl') ?>
 			</button>
-			<button class="btn btn-outline-primary" id="addCalendarBtn" disabled>
+			<button class="btn btn-sm btn-outline-primary" id="addCalendarBtn" disabled>
 				<i class="bi bi-calednar-plus"></i> <?= _::uf('add_calendar') ?>
 			</button>
-			<button class="btn btn-outline-primary" id="manageGlobalAclBtn" disabled>
+			<button class="btn btn-sm btn-outline-primary" id="manageGlobalAclBtn" disabled>
 				<i class="bi bi-person-check"></i> <?= _::uf('manage_global_acl') ?>
 			</button>
 		</div>
 		<div class="d-flex align-items-center gap-3">
 			<span class="text-body-secondary" id="userNameLabel"><?= _::uf('anonymous') ?></span>
-			<button class="btn btn-outline-primary" id="disconnectBtn">
+			<button class="btn btn-sm btn-outline-primary" id="disconnectBtn">
 				<i class="bi bi-box-arrow-right"></i> <?= _::uf('disconnect') ?>
 			</button>
 		</div>
@@ -103,7 +103,7 @@ foreach (_::$conf['authentication'] as $source => $data)
 						<label class="form-label">Date de début</label>
 						<div class="input-group">
 							<input type="datetime-local" class="form-control" id="eventStart" required>
-							<button type="button" class="btn btn-outline-secondary" id="copyStartToEndBtn" tabindex="-1">
+							<button type="button" class="btn btn-sm btn-outline-secondary" id="copyStartToEndBtn" tabindex="-1">
 								<i class="bi bi-arrow-down-left-square"></i>
 							</button>
 						</div>
@@ -116,10 +116,10 @@ foreach (_::$conf['authentication'] as $source => $data)
 					</div>
 
 					<!-- All day -->
-					<div class="form-check mb-3">
+<!--					<div class="form-check mb-3">
 						<input class="form-check-input" type="checkbox" id="eventAllDay">
 						<label class="form-check-label">Toute la journée</label>
-					</div>
+					</div>-->
 
 					<div class="mb-3">
 						<label class="form-label">URL</label>
@@ -127,10 +127,10 @@ foreach (_::$conf['authentication'] as $source => $data)
 					</div>
 
 					<!-- Color -->
-					<div class="mb-3">
+<!--					<div class="mb-3">
 						<label class="form-label">Couleur</label>
 						<input type="color" class="form-control form-control-color" id="eventColor">
-					</div>
+					</div>-->
 
 					<!-- Description -->
 					<div class="mb-3">
@@ -142,9 +142,9 @@ foreach (_::$conf['authentication'] as $source => $data)
 			</div>
 
 			<div class="modal-footer">
-				<button type="button" class="btn btn-danger me-auto" id="deleteEventBtn" disabled><?= _::uf('delete') ?></button>
-				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?= _::uf('cancel') ?></button>
-				<button type="button" class="btn btn-primary" id="saveEventBtn"><?= _::uf('save') ?></button>
+				<button type="button" class="btn btn-sm btn-danger me-auto" id="deleteEventBtn" disabled><?= _::uf('delete') ?></button>
+				<button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal"><?= _::uf('cancel') ?></button>
+				<button type="button" class="btn btn-sm btn-primary" id="saveEventBtn"><?= _::uf('save') ?></button>
 			</div>
 
 		</div>
@@ -173,8 +173,8 @@ foreach (_::$conf['authentication'] as $source => $data)
 				</form>
 			</div>
 			<div class="modal-footer">
-				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?= _::uf('cancel') ?></button>
-				<button type="button" class="btn btn-primary" id="saveCalendarBtn"><?= _::uf('save') ?></button>
+				<button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal"><?= _::uf('cancel') ?></button>
+				<button type="button" class="btn btn-sm btn-primary" id="saveCalendarBtn"><?= _::uf('save') ?></button>
 			</div>
 		</div>
 	</div>
@@ -198,8 +198,35 @@ foreach (_::$conf['authentication'] as $source => $data)
 						</tr>
 					</thead>
 					<tbody id="calendarSpecialAclList"></tbody>
+					<tfoot>
+						<tr>
+							<td>
+								<select class="form-select" name="user_type">
+									<option value=":anonymous"><?= _::_('anonymous') ?></option>
+									<option value=":connected"><?= _::_('connected') ?></option>
+									<?php
+
+									foreach (_::$conf['authentication'] as $source => $data)
+										printf('<option value="%s:connected">%s (%s)</option>'.PHP_EOL,$source,_::_('connected'),$source);
+
+									?>
+								</select>
+							</td>
+							<td>
+								<select name="authorization" class="form-select form-select-sm">
+									<option value="0"><?= _::_('level_forbidden') ?></option>
+									<option value="1"><?= _::_('level_free_busy') ?></option>
+									<option value="2"><?= _::_('level_read') ?></option>
+									<option value="3"><?= _::_('level_write') ?></option>
+									<option value="4"><?= _::_('level_acl') ?></option>
+								</select>
+							</td>
+							<td>
+								<button type="button" id="calendarAclAddSpecial" class="btn btn-sm btn-outline-primary"><i class="bi bi-plus"></i></button>
+							</td>
+						</tr>
+					</tfoot>
 				</table>
-				<div class="row g-2 align-items-end" id="calendarSpecialAclForm"></div>
 				<hr>
 				<table class="table table-sm table-hover mb-3">
 					<thead>
@@ -212,11 +239,39 @@ foreach (_::$conf['authentication'] as $source => $data)
 						</tr>
 					</thead>
 					<tbody id="calendarAclList"></tbody>
+					<tfoot>
+						<tr>
+							<td>
+								<select class="form-select form-select-sm" name="source">
+									<?= $sources_options ?>
+								</select>
+							</td>
+							<td>
+								<input type="text" class="form-control form-control-sm" name="identifier">
+							</td>
+							<td>
+								<select class="form-select form-select-sm" name="type">
+									<option value="user"><?= _::_('type_user') ?></option>
+									<option value="group"><?= _::_('type_group') ?></option>
+								</select>
+							</td>
+							<td>
+								<select class="form-select form-select-sm" name="authorization">
+									<option value="1"><?= _::_('level_free_busy') ?></option>
+									<option value="2"><?= _::_('level_read') ?></option>
+									<option value="3"><?= _::_('level_write') ?></option>
+									<option value="4"><?= _::_('level_acl') ?></option>
+								</select>
+							</td>
+							<td>
+								<button type="button" id="calendarAclAddRegular" class="btn btn-sm btn-outline-primary"><i class="bi bi-plus"></i></button>
+							</td>
+						</tr>
+					</tfoot>
 				</table>
-				<div class="row g-2 align-items-end" id="calendarAclForm"></div>
 			</div>
 			<div class="modal-footer">
-				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?= _::uf('close') ?></button>
+				<button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal"><?= _::uf('close') ?></button>
 			</div>
 		</div>
 	</div>
@@ -275,7 +330,7 @@ foreach (_::$conf['authentication'] as $source => $data)
 								</div>
 							</td>
 							<td>
-								<button type="button" id="globalAclAddSpecial" class="btn btn-outline-primary"><i class="bi bi-plus"></i></button>
+								<button type="button" id="globalAclAddSpecial" class="btn btn-sm btn-outline-primary"><i class="bi bi-plus"></i></button>
 							</td>
 						</tr>
 					</tfoot>
@@ -329,14 +384,14 @@ foreach (_::$conf['authentication'] as $source => $data)
 								</div>
 							</td>
 							<td>
-								<button type="button" id="globalAclAddRegular" class="btn btn-outline-primary"><i class="bi bi-plus"></i></button>
+								<button type="button" id="globalAclAddRegular" class="btn btn-sm btn-outline-primary"><i class="bi bi-plus"></i></button>
 							</td>
 						</tr>
 					</tfoot>
 				</table>
 			</div>
 			<div class="modal-footer">
-				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?= _::uf('close') ?></button>
+				<button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal"><?= _::uf('close') ?></button>
 			</div>
 		</div>
 	</div>
@@ -370,7 +425,7 @@ foreach (_::$conf['authentication'] as $source => $data)
 			</div>
 
 			<div class="modal-footer">
-				<button type="button" class="btn btn-primary" id="loginBtn"><?= _::uf('connect') ?></button>
+				<button type="button" class="btn btn-sm btn-primary" id="loginBtn"><?= _::uf('connect') ?></button>
 			</div>
 		</div>
 	</div>
