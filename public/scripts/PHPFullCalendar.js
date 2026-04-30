@@ -3,10 +3,11 @@ PHPFullCalendar = (function ()
 {
 	var _translations;
 	var _modals = {};
-	var _calendar;
-	var _globalsAuth = 0;
-	var _calendarAuth = 0;
-	var _calendar_id = null;
+	var _calendar; // FullCalendar.js
+	var _calendar_id = null; // selected calendar unique database id 
+	var _globalsAuth = 0; // connected user global authorizations
+	var _calendarAuth = 0; // connected user selected calendar authorizations
+	var _event_id = null; // clicked calendar event unique database id
 	var _user_infos;
 	var _ask_for_login = false;
 	var _sources = null;
@@ -38,13 +39,23 @@ PHPFullCalendar = (function ()
 			});
 			return null;
 		}
-		else if (response.status === 401)
+		if (response.status === 401)
 		{
 			if (! _ask_for_login)
 			{
 				_ask_for_login = true;
 				_getModal('login').show();
 			}
+			return null;
+		}
+		if (response.status === 403)
+		{
+			const data = await response.json();
+			swal({
+				title: _('unauthorized'),
+				text: _(data['message'] ?? _('unknown_error')),
+				icon: 'error'
+			});
 			return null;
 		}
 		if (response.ok)
@@ -139,6 +150,7 @@ PHPFullCalendar = (function ()
 		{
 			_calendarAuth = 0;
 			_enable('addEventBtn', false);
+			_enable('calendarInfoBtn', false);
 			_enable('editCalendarBtn', false);
 			_enable('manageCalendarAclBtn', false);
 			calendar.setAttribute('data-hidden', 'true');
@@ -149,9 +161,10 @@ PHPFullCalendar = (function ()
 		const response = await _request(`/Authorization/calendar/${_calendar_id}`);
 		_calendarAuth = response !== null ? await response.json() : 0;
 		_enable('addEventBtn', _calendarAuth >= 3);
+		_enable('calendarInfoBtn', _calendarAuth >= 1);
 		_enable('editCalendarBtn', _calendarAuth >= 3);
 		_enable('manageCalendarAclBtn', _calendarAuth >= 4);
-		_enable('removeCalendarBtn',true);
+		_enable('removeCalendarBtn', (_calendarAuth >= 4) && (_globalsAuth & 2) === 2);
 		calendar.removeAttribute('data-hidden');
 		no_calendar.setAttribute('data-hidden', 'true');
 		_calendar.removeAllEventSources();
@@ -173,6 +186,14 @@ PHPFullCalendar = (function ()
 		if (/^\d{4}-\d{2}-\d{2}$/.test(str))
 			return str + 'T00:00';
 		return str.substring(0, 16);
+	}
+
+	function _utcToDateTimeLocal(str)
+	{                                                                                                                                                                                                                                           
+		if (! str) return '';
+		const d = new Date(str);                                                                                                                                                                                                                
+		const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);                                                                                                                                                                    
+		return local.toISOString().substring(0, 16);
 	}
 
 	// Escape HTML to safely insert user-controlled content via innerHTML
@@ -240,7 +261,10 @@ PHPFullCalendar = (function ()
 	{
 		return _el({
 			tag: 'select',
-			attrs: {name: 'level'},
+			attrs: {
+				name: 'level',
+				class: 'form-select form-select-sm'
+			},
 			content: options.map((option) => {
 				return {
 					tag: 'option',
@@ -441,7 +465,6 @@ PHPFullCalendar = (function ()
 
 	async function _globalAclDelete(key)
 	{
-		console.log(key);
 		const confirmed = await swal({
 			title: _('confirm_delete_acl'),
 			icon: 'warning',
@@ -473,7 +496,6 @@ PHPFullCalendar = (function ()
 		const tr = event.target.closest('tr');
 		const data = tr.dataset;
 		data.authorization = _getAuthorization(tr);
-		console.log(data);
 		_globalAclSave(data);
 	}
 
@@ -588,17 +610,6 @@ PHPFullCalendar = (function ()
 		}
 	}
 
-	async function _createCalendar(data)
-	{
-		const response = await _request('/Calendar/create',
-		{
-			method: 'POST',
-			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-			body: new URLSearchParams(data)
-		});
-		return response !== null;
-	}
-
 	// constructeur
 	function construct(lang,sources)
 	{
@@ -627,25 +638,104 @@ PHPFullCalendar = (function ()
 			_calendar = new FullCalendar.Calendar(document.getElementById('calendar'),{
 				'locale': lang,
 		//		'height': 'auto',
+//				'plugins': [timeGridPlugin],                                                                                                                                                                                                              
 				'headerToolbar': {
 					'left': 'prev,next today',
 					'center': 'title',
-					'right': 'dayGridDay,dayGridWeek,dayGridMonth,dayGridYear'
+					'right': 'timeGridDay,timeGridWeek,dayGridMonth,dayGridYear'
 				},
 				'views': {
-					'dayGridWeek': {
-						'buttonText': 'semaine'
+					'timeGridDay': {
+						'allDaySlot': false
 					},
-					'dayGridMonth': {
-						'buttonText': 'mois'
-					},
-					'dayGridYear': {
-						'buttonText': 'année'
+					'timeGridWeek': {
+						'allDaySlot': false
 					}
 				},
-				'initialView': 'dayGridWeek',
+				'initialView': 'timeGridWeek',
 				'height': '100%',
 			});
+
+			// Connection managment
+
+			document.getElementById('loginBtn').addEventListener('click', self.connect);
+			document.getElementById('disconnectBtn').addEventListener('click', self.disconnect);
+
+			// Calendars managment
+
+			document.getElementById('addCalendarBtn').addEventListener('click', function () {
+				_calendar_id = null;
+				document.getElementById('calendarForm').reset();
+				_getModal('calendar').show();
+			});
+			document.getElementById('calendarInfoBtn').addEventListener('click', async function () {
+				if (_calendar_id === null)
+					return;
+				const response = await _request(`/Calendar/read/${_calendar_id}`);
+				if (response === null)
+					return;
+				const cal = await response.json();
+				document.getElementById('infoCalendarName').textContent = cal.name;
+				document.getElementById('infoCalendarDescription').textContent = cal.description ?? '';
+				const icsUrl = `${window.location.origin}/$/Event/ics/${_calendar_id}`;
+				const link = document.getElementById('infoIcsLink');
+				link.href = icsUrl;
+				link.textContent = icsUrl;
+				_getModal('info').show();
+			});
+			document.getElementById('editCalendarBtn').addEventListener('click', async function () {
+				if (_calendar_id === null)
+					return;
+				const response = await _request(`/Calendar/read/${_calendar_id}`);
+				if (response === null)
+					return;
+				data = await response.json();
+				const form = document.getElementById('calendarForm');
+				form.reset();
+				form.querySelectorAll('[name]').forEach(field => field.value = data[field.name]);
+				_getModal('calendar').show();
+			});
+			document.getElementById('removeCalendarBtn').addEventListener('click', async function () {
+				const confirmed = await swal({
+					title: _('confirm_delete_calendar'),
+					icon: 'warning',
+					buttons: true,
+					dangerMode: true
+				});
+				if (! confirmed)
+					return;
+				const response = await _request(`/Calendar/delete/${_calendar_id}`);
+				if (response === null)
+					return;
+				_calendar_id = null;
+				await _refreshCalendarsList();
+				_showCalendar();
+			});
+			document.getElementById('saveCalendarBtn').addEventListener('click', async function (event) {
+				const fields = event.target.closest('div .modal-content').querySelectorAll('[name]');
+				const data = {};
+				for (const field of fields)
+					data[field.name] = field.value;
+				const url = _calendar_id ? `/Calendar/update/${_calendar_id}` : '/Calendar/create';
+				const response = await _request(url,
+				{
+					method: 'POST',
+					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+					body: new URLSearchParams(data)
+				});
+				if (response === null)
+					return;
+				if (_calendar_id === null)
+				{
+					_calendar_id = await response.json();
+					_showCalendar();
+				}
+				await _refreshCalendarsList();
+				_getModal('calendar').hide();
+			});
+
+			// Events managment
+
 			_calendar.on('eventMouseEnter', function(info) {
 				const desc = info.event.extendedProps.description;
 				if (! desc) return;
@@ -659,41 +749,84 @@ PHPFullCalendar = (function ()
 				info.el.removeEventListener('mousemove', _moveTooltip);
 			});
 			_calendar.on('dateClick', function(info) {
-				document.getElementById('eventId').value = '';
+				_event_id = null;
+				const form = document.getElementById('eventForm');
+				form.reset();
+				form.querySelector('input[name=start]').value = _toDateTimeLocal(info.dateStr);
 				document.getElementById('eventModalTitle').textContent = _('new_event');
-				document.getElementById('eventForm').reset();
-				document.getElementById('eventStart').value = _toDateTimeLocal(info.dateStr);
+//				document.getElementById('eventStart').value = _toDateTimeLocal(info.dateStr);
 				document.getElementById('deleteEventBtn').disabled = true;
 				_getModal('event').show();
 			});
-			_calendar.on('eventClick', function(info) {
+			_calendar.on('eventClick', async function(info) {
 				info.jsEvent.preventDefault();
-				const ev = info.event;
-				document.getElementById('eventId').value = ev.id;
+				_event_id = info.event.id;
+				const response = await _request(`/Event/read/${_event_id}`);
+				if (response === null)
+					return;
+				data = await response.json();
+				console.log(data);
+				const form = document.getElementById('eventForm');
+				form.reset();
+				form.querySelectorAll('[name]').forEach((field) => {
+					field.value = (field.name === 'start' || field.name === 'end')?_utcToDateTimeLocal(data[field.name]):data[field.name];
+				});
 				document.getElementById('eventModalTitle').textContent = _('edit_event');
-				document.getElementById('eventTitle').value = ev.title;
-				document.getElementById('eventStart').value = _toDateTimeLocal(ev.startStr);
-				document.getElementById('eventEnd').value = _toDateTimeLocal(ev.endStr);
-				document.getElementById('eventUrl').value = ev.url ?? '';
-				document.getElementById('eventDescription').value = ev.extendedProps.description ?? '';
 				document.getElementById('deleteEventBtn').disabled = (_calendarAuth < 3);
 				_getModal('event').show();
 			});
-			_showCalendar();
 			document.getElementById('addEventBtn').addEventListener('click', function () {
+				_event_id = null;
+				document.getElementById('eventForm').reset();
 				_getModal('event').show();
 			});
-			document.getElementById('addCalendarBtn').addEventListener('click', function () {
-				_getModal('calendar').show();
-			});
 			document.getElementById('copyStartToEndBtn').addEventListener('click', function () {
-				document.getElementById('eventEnd').value = _toDateTimeLocal(document.getElementById('eventStart').value);
+				const form = document.getElementById('eventForm');
+				console.log(form.querySelector('input[name=start]').value);
+//				form.querySelector('input[name=end]').value = _toDateTimeLocal(form.querySelector('input[name=start]').value);
+				form.querySelector('input[name=end]').value = form.querySelector('input[name=start]').value;
 			});
-			document.getElementById('saveEventBtn').addEventListener('click', self.saveEvent);
-			document.getElementById('deleteEventBtn').addEventListener('click', self.deleteEvent);
-			document.getElementById('loginBtn').addEventListener('click', self.connect);
-			document.getElementById('disconnectBtn').addEventListener('click', self.disconnect);
-			document.getElementById('saveCalendarBtn').addEventListener('click', self.saveCalendar);
+			document.getElementById('saveEventBtn').addEventListener('click', async function (event) {
+				const fields = document.getElementById('eventForm').querySelectorAll('[name]');
+				const data = {};
+				document.getElementById('eventForm').querySelectorAll('[name]').forEach(field => {
+					if (field.value && (field.name === 'start' || field.name === 'end'))
+						data[field.name] = new Date(field.value).toISOString();
+					else
+						data[field.name] = field.value;
+				});
+				console.log(data);
+				const url = _event_id ? `/Event/update/${_event_id}` : `/Event/create/${_calendar_id}`;
+				const response = await _request(url,
+				{
+					method: 'POST',
+					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+					body: new URLSearchParams(data)
+				});
+				if (response === null)
+					return;
+				_showCalendar();
+				_getModal('event').hide();
+			});
+			document.getElementById('deleteEventBtn').addEventListener('click', async function (event) {
+				if (! _event_id) return;
+				const confirmed = await swal({
+					title: _('confirm_delete_event'),
+					icon: 'warning',
+					buttons: [_('cancel'), _('delete')],
+					dangerMode: true
+				});
+				if (! confirmed) return;
+				const response = await _request(`/Event/delete/${_event_id}`);
+				if (response === null)
+					return;
+				const ev = _calendar.getEventById(_event_id);
+				if (ev) ev.remove();
+				_getModal('event').hide();
+			});
+
+			// Calendar ACL managment
+
 			document.getElementById('manageCalendarAclBtn').addEventListener('click', function ()
 			{
 				_calendarAclLoad();
@@ -741,6 +874,7 @@ PHPFullCalendar = (function ()
 				fields.forEach((field) => {data[field.name] = field.value});
 				_calendarAclSave(data);
 			});
+			_showCalendar();
 			_checkConnection().then(connected => {
 				if ((! connected) && (! _ask_for_login))
 				{
@@ -803,59 +937,6 @@ PHPFullCalendar = (function ()
 				text: _('internal_error'),
 				icon: "error"
 			});
-	}
-
-	construct.prototype.saveCalendar = async function()
-	{
-		const fields = document.getElementById('calendarForm').querySelectorAll('[id]');
-		const data = {};
-		for (const field of fields)
-			data[field.id] = field.value;
-		const calendarId = data["calendarId"];
-		delete data["calendarId"];
-		_getModal('calendar').hide();
-		const ok = (calendarId === "") ? await _createCalendar(data) : await _updateCalendar(Number(calendarId), data);
-		if (ok)
-			_refreshCalendarsList();
-	}
-
-	construct.prototype.saveEvent = async function()
-	{
-		const fields = document.getElementById('eventForm').querySelectorAll('[id]');
-		const data = {};
-		for (const field of fields)
-			data[field.id] = field.value;
-		const event_id = data['eventId'];
-		const url = event_id ? `/Event/update/${event_id}` : `/Event/create/${_calendar_id}`;
-		const response = await _request(url,
-		{
-			method: 'POST',
-			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-			body: new URLSearchParams(data)
-		});
-		if (response === null)
-			return;
-		_showCalendar();
-		_getModal('event').hide();
-	}	
-
-	construct.prototype.deleteEvent = async function()
-	{
-		const event_id = document.getElementById('eventId').value;
-		if (! event_id) return;
-		const confirmed = await swal({
-			title: _('confirm_delete_event'),
-			icon: 'warning',
-			buttons: [_('cancel'), _('delete')],
-			dangerMode: true
-		});
-		if (! confirmed) return;
-		const response = await _request(`/Event/delete/${event_id}`);
-		if (response === null)
-			return;
-		const ev = _calendar.getEventById(event_id);
-		if (ev) ev.remove();
-		_getModal('event').hide();
 	}
 
 	return construct;

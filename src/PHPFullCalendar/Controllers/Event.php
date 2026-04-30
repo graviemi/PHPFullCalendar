@@ -2,58 +2,107 @@
 
 namespace PHPFullCalendar\Controllers;
 
-use PHPFullCalendar\_,
+use DateTimeImmutable,
+	PHPFullCalendar\_,
 	PHPFullCalendar\Database\ACL,
 	PHPFullCalendar\Database\Calendar as CalendarDB,
 	PHPFullCalendar\Views\Json,
 	PHPFullCalendar\Views\Ics,
+	PHPFullCalendar\Views\FreeBusy,
 	PHPFullCalendar\Views\Ok,
 	PHPFullCalendar\Views\BadRequest,
 	PHPFullCalendar\Views\NotFound;
 
 class Event extends ControllerAbstract
 {
+	protected static array $validation = [
+		'title' => ['/^.{3,255}$/','title_required'],
+		'start' => ['/^\d{4,4}-\d{2,2}-\d{2,2}T\d{2,2}:\d{2,2}:00\.000Z$/','start_date_required'],
+		'end' => ['/^(|\d{4,4}-\d{2,2}-\d{2,2}T\d{2,2}:\d{2,2}:00\.000Z)$/','wrong_end_date_format'],
+		'url' => ['/^.{0,2000}$/','url_too_long'],
+		'description' => ['/^.{0,65535}$/s','description_too_long']
+	];
 
-	public function _post_create()
+	protected function _control(array $raw_data) : string|null
+	{
+		foreach (self::$validation as $key => $rules)
+		{
+			if (! preg_match($rules[0],$raw_data[$key] ?? ''))
+				return $rules[1];
+		}
+		return null;
+	}
+
+	protected static function _get_start_and_duration(string $start, string $end) : array
+	{
+		$start_ts = floor((new DateTimeImmutable($start))->getTimestamp() / 60);
+		if ($end !== '')
+		{
+			$end_ts = floor((new DateTimeImmutable($end))->getTimestamp() / 60);
+			return [$start_ts,$end_ts - $start_ts];
+		}	
+		return [$start_ts,null];
+	}
+
+	protected function _post_create()
 	{
 		if (! preg_match('|^(\d+)$|', $this->parameters, $matches))
 			return new NotFound();
 		$calendar_id = (int) $matches[1];
-
 		$acl = new ACL(_::getPDO());
 		if ($acl->getCalendarAuthorization($calendar_id, _::getUserData()) < ACL::CAL_WRITE)
 			return _::denyAccess();
 
-		$title = $_POST['eventTitle'] ?? null;
-		$startStr = $_POST['eventStart'] ?? null;
-		if ($title === null || $startStr === null)
-			return new BadRequest(_::_('title_and_start_required'));
-
-		$start = (int)(strtotime($startStr) / 60);
-
-		$duration = null;
-		if (! empty($_POST['eventEnd']))
-		{
-			$end = (int)(strtotime($_POST['eventEnd']) / 60);
-			$duration = $end - $start;
-		}
+		_::debug('post: %s',print_r($_POST,true));
+		if (($message = self::_control($_POST)) !== null)
+			return new BadRequest(_::_($message));
+		[$start,$duration] = self::_get_start_and_duration($_POST['start'],$_POST['end']);
+		if ($duration !== null && $duration < 1)
+			return new BadRequest(_::_('end_after_start_required'));
 
 		$db = new CalendarDB(_::getPDO());
 		$event_id = $db->createEvent(
 			$calendar_id,
 			$start,
-			$title,
+			$_POST['title'],
 			$duration,
 			null,
 			null,
-			$_POST['eventDescription'] ?? null,
-			$_POST['eventUrl'] ?? null
+			$_POST['description'] ?? null,
+			$_POST['url'] ?? null
 		);
 
-		return new Json(['event_id' => $event_id]);
+		return new Json($event_id);
 	}
 
-	public function _post_update()
+	protected function _get_read()
+	{
+		if (! preg_match('|^(\d+)$|', $this->parameters, $matches))
+			return new NotFound();
+		$event_id = (int) $matches[1];
+
+		$db = new CalendarDB(_::getPDO());
+		$event = $db->getEvent($event_id);
+		if ($event === false)
+			return new NotFound();
+
+		$acl = new ACL(_::getPDO());
+		if ($acl->getCalendarAuthorization($event['calendar_id'], _::getUserData()) < ACL::CAL_READ)
+			return _::denyAccess();
+
+		$startSec = $event['start'] * 60;
+		return new Json([
+			'event_id' => $event['event_id'],
+			'calendar_id' => $event['calendar_id'],
+			'title' => $event['title'],
+			'start' => gmdate('Y-m-d\TH:i:s\Z', $startSec),
+			'end' => $event['duration'] !== null ? gmdate('Y-m-d\TH:i:s\Z', $startSec + $event['duration'] * 60) : null,
+			'description' => $event['description'],
+			'url' => $event['url'],
+		]);
+	}
+
+	protected function _post_update()
 	{
 		if (! preg_match('|^(\d+)$|', $this->parameters, $matches))
 			return new NotFound();
@@ -68,35 +117,28 @@ class Event extends ControllerAbstract
 		if ($acl->getCalendarAuthorization($event['calendar_id'], _::getUserData()) < ACL::CAL_WRITE)
 			return _::denyAccess();
 
-		$title = $_POST['eventTitle'] ?? null;
-		$startStr = $_POST['eventStart'] ?? null;
-		if ($title === null || $startStr === null)
-			return new BadRequest(_::_('title_and_start_required'));
+		if (($message = self::_control($_POST)) !== null)
+			return new BadRequest(_::_($message));
 
-		$start = (int)(strtotime($startStr) / 60);
-
-		$duration = null;
-		if (! empty($_POST['eventEnd']))
-		{
-			$end = (int)(strtotime($_POST['eventEnd']) / 60);
-			$duration = $end - $start;
-		}
+		[$start,$duration] = self::_get_start_and_duration($_POST['start'],$_POST['end']);
+		if ($duration !== null && $duration < 1)
+			return new BadRequest(_::_('end_after_start_required'));
 
 		$db->updateEvent(
 			$event_id,
 			$start,
-			$title,
+			$_POST['title'],
 			$duration,
 			null,
 			null,
-			$_POST['eventDescription'] ?? null,
-			$_POST['eventUrl'] ?? null
+			$_POST['description'] ?? null,
+			$_POST['url'] ?? null
 		);
 
 		return new Ok();
 	}
 
-	public function _get_delete()
+	protected function _get_delete()
 	{
 		if (! preg_match('|^(\d+)$|', $this->parameters, $matches))
 			return new NotFound();
@@ -115,7 +157,7 @@ class Event extends ControllerAbstract
 		return new Ok();
 	}
 
-	public function _get_list()
+	protected function _get_list()
 	{
 		if (! preg_match('|^(\d+)$|', $this->parameters, $matches))
 			return new NotFound();
@@ -154,7 +196,7 @@ class Event extends ControllerAbstract
 		return new Json($result);
 	}
 
-	public function _get_ics()
+	protected function _get_ics()
 	{
 		if (! preg_match('|^(\d+)$|', $this->parameters ?? '', $matches))
 			return new NotFound();
@@ -201,6 +243,9 @@ class Event extends ControllerAbstract
 		}
 
 		$events = $db->getEvents($calendar_id, $start, $end);
+		$auth = $acl->getCalendarAuthorization($calendar_id, _::getUserData());
+		if ($auth === ACL::CAL_FREE_BUSY)
+			return new FreeBusy($calendar['name'], $events);
 		return new Ics($calendar['name'], $events);
 	}
 

@@ -84,3 +84,8 @@ div.acl_checkboxes label {
 div.acl_checkboxes label:has(> input:checked) {
 	color: #0d6efd;
 }
+
+/*button .bi
+{
+	font-size: 1.2em;
+}*/

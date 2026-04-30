@@ -34,12 +34,12 @@ class Calendar
 		return $stmt->fetchAll(\PDO::FETCH_ASSOC);
 	}
 
-	public function getAuthorizedCalendars(ArrayObject|Session $data) : array
+	public function getManagedCalendars(ArrayObject|Session $data) : array
 	{
 		$sql = 'SELECT c.calendar_id, c.name, c.description, MAX(a.authorization) AS authorization
 			FROM calendar c
 			INNER JOIN calendarACL a ON a.calendar_id = c.calendar_id
-			WHERE (a.identifier = "anonymous" AND a.type = "special")';
+			WHERE (a.authorization >= 3) AND ((a.identifier = "anonymous" AND a.type = "special")';
 		$source = $data['source'];
 		$params = [];
 		if (isset($data['user_id']))
@@ -55,7 +55,7 @@ class Calendar
 			$sql .= ' OR (a.identifier = :identifier AND a.type = "user")))';
 			$params[':identifier'] = $data['user_id'];
 		}
-		$sql .= ' GROUP BY c.calendar_id, c.name, c.description ORDER BY c.name';
+		$sql .= ') GROUP BY c.calendar_id, c.name, c.description ORDER BY c.name';
 		$stmt = $this->pdo->prepare($sql);
 		$stmt->execute($params);
 		return $stmt->fetchAll(\PDO::FETCH_ASSOC);

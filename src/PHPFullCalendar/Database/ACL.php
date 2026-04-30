@@ -54,6 +54,7 @@ class ACL
 			$params[':source'] = $source;
 			$params[':identifier'] = $data['user_id'];
 		}
+		\PHPFullCalendar\_::debug('getGlobalAuthorization sql:%s',$sql);
 		$stmt = $this->pdo->prepare($sql);
 		$stmt->execute($params);
 		$row = $stmt->fetch(\PDO::FETCH_ASSOC);

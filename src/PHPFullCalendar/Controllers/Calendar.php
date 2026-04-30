@@ -17,28 +17,30 @@ class Calendar extends ControllerAbstract
 
 	public function _post_create()
 	{
+		$user_data = _::getUserData();
+		_::debug('/Calendar/create userData:%s',print_r($user_data->toArray(),true));
 		$acl = new ACL(_::getPDO());
-		if (! ($acl->getGlobalAuthorization(_::getUserData()) & ACL::GR_CAL_CREATE))
+		_::debug('/Calendar/create acl pour %s : %s',$user_data['user_id'],$acl->getGlobalAuthorization($user_data));
+		if (($acl->getGlobalAuthorization($user_data) & ACL::GR_CAL_CREATE) === 0)
 			return _::denyAccess();
-		$name = $_POST['calendarName'] ?? null;
-		if ($name === null)
+		$name = $_POST['name'] ?? '';
+		if ((strlen($name) === 0) || (strlen($name) > 255))
 			return new BadRequest('name is required');
 		$db = new CalendarDB(_::getPDO());
-		$calendar_id = $db->createCalendar($name, $_POST['calendarDescription'] ?? null);
-		$data = _::getUserData();
-		$acl->setCalendarAuthorization($calendar_id, $data['source'] ?? '', $data['user_id'] ?? '', 'user', ACL::CAL_ACL);
-		return new Json(['calendar_id' => $calendar_id]);
+		$calendar_id = $db->createCalendar($name, $_POST['description'] ?? null);
+		$acl->setCalendarAuthorization($calendar_id, $user_data['source'] ?? '', $user_data['user_id'] ?? '', 'user', ACL::CAL_ACL);
+		return new Json($calendar_id);
 	}
 
 	public function _get_catalog()
 	{
 		$db = new CalendarDB(_::getPDO());
-		return new Json($db->getAuthorizedCalendars(_::getUserData()));
+		return new Json($db->getManagedCalendars(_::getUserData()));
 	}
 
 	public function _get_read()
 	{
-		if (! preg_match('|^/(\d+)$|', $this->parameters, $matches))
+		if (! preg_match('|^(\d+)$|', $this->parameters, $matches))
 			return new NotFound();
 		$db = new CalendarDB(_::getPDO());
 		$calendar = $db->getCalendar((int) $matches[1]);
@@ -51,8 +53,7 @@ class Calendar extends ControllerAbstract
 	{
 		if (! preg_match('|^(\d+)$|', $this->parameters, $matches))
 			return new NotFound();
-		$name = $_POST['name'] ?? null;
-		if ($name === null)
+		if (($name = $_POST['name'] ?? null) === null)
 			return new BadRequest('name is required');
 		$db = new CalendarDB(_::getPDO());
 		if ($db->getCalendar((int) $matches[1]) === false)

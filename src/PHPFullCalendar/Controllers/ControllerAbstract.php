@@ -19,10 +19,8 @@ abstract class ControllerAbstract implements ControllerInterface
 
 	public function view() : ViewInterface
 	{
-		\PHPFullCalendar\_::debug('method : %s',$this->method);
 		if (! method_exists($this,$this->method))
 			return new NotFound();
-		\PHPFullCalendar\_::debug('method found');
 		return $this->{$this->method}();
 	}
 }

@@ -22,9 +22,10 @@ foreach (_::$conf['authentication'] as $source => $data)
 	<link href="/public/styles/main.css" rel="stylesheet">
 	<script src="https://ressources.osug.fr/bootstrap-5.3.3-dist/js/bootstrap.min.js"></script>
 	<script src="https://ressources.osug.fr/scripts/ical.min.js"></script>
-	<script src="https://ressources.osug.fr/scripts/fullcalendar-6.1.15/dist/index.global.js"></script>
-	<script src="https://ressources.osug.fr/scripts/fullcalendar-6.1.15/packages/icalendar/index.global.js"></script>
+	<script src="https://ressources.osug.fr/scripts/fullcalendar-6.1.15/dist/index.global.min.js"></script>
 	<script src="https://ressources.osug.fr/scripts/fullcalendar-6.1.15/packages/core/locales-all.global.min.js"></script>	
+<!--	<script src="https://ressources.osug.fr/scripts/fullcalendar-6.1.15/packages/core/index.global.min.js"></script>
+	<script src="https://ressources.osug.fr/scripts/fullcalendar-6.1.15/packages/timegrid/index.global.min.js"></script>-->
 	<script src="https://ressources.osug.fr/scripts/sweetalert.min.js"></script>
 	<script src="/public/scripts/PHPFullCalendar.js"></script>
 	<script type="application/javascript">
@@ -40,22 +41,26 @@ foreach (_::$conf['authentication'] as $source => $data)
 	<nav class="navbar bg-body-tertiary px-3">
 		<div class="d-flex gap-2">
 			<button class="btn btn-sm btn-outline-primary" id="addEventBtn" disabled>
-				<i class="bi bi-calendar-event"></i> <?= _::uf('add_event') ?>
+				<i class="bi bi-plus-circle-fill"></i> <?= _::uf('event') ?>
+			</button>
+			<button class="btn btn-sm btn-outline-primary" id="calendarInfoBtn" disabled>
+				<i class="bi bi-info-circle-fill"></i> <?= _::uf('calendar') ?>
 			</button>
 			<button class="btn btn-sm btn-outline-primary" id="editCalendarBtn" disabled>
-				<i class="bi bi-pencil"></i> <?= _::uf('edit_calendar') ?>
+				<i class="bi bi-pen-fill"></i> <?= _::uf('calendar') ?>
 			</button>
 			<button class="btn btn-sm btn-outline-danger" id="removeCalendarBtn" disabled>
-				<i class="bi bi-trash"></i> <?= _::uf('remove_calendar') ?>
+				<i class="bi bi-trash-fill"></i> <?= _::uf('calendar') ?>
 			</button>
 			<button class="btn btn-sm btn-outline-primary" id="manageCalendarAclBtn" disabled>
-				<i class="bi bi-person-check"></i> <?= _::uf('manage_calendar_acl') ?>
+				<i class="bi bi-person-fill-check"></i> <?= _::uf('calendar') ?>
 			</button>
+			<div class="vr"></div>
 			<button class="btn btn-sm btn-outline-primary" id="addCalendarBtn" disabled>
-				<i class="bi bi-calednar-plus"></i> <?= _::uf('add_calendar') ?>
+				<i class="bi bi-plus-circle-fill"></i> <?= _::uf('calendar') ?>
 			</button>
 			<button class="btn btn-sm btn-outline-primary" id="manageGlobalAclBtn" disabled>
-				<i class="bi bi-person-check"></i> <?= _::uf('manage_global_acl') ?>
+				<i class="bi bi-gear-fill"></i> <?= _::uf('global') ?>
 			</button>
 		</div>
 		<div class="d-flex align-items-center gap-3">
@@ -85,68 +90,57 @@ foreach (_::$conf['authentication'] as $source => $data)
 <div class="modal fade" id="eventModal" tabindex="-1">
 	<div class="modal-dialog">
 		<div class="modal-content">		
-			<div class="modal-header">
-				<h5 class="modal-title" id="eventModalTitle"><?= _::uf('new_event') ?></h5>
-				<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-			</div>
-			<div class="modal-body">
-				<form id="eventForm">
-					<input type="hidden" id="eventId">
-					<!-- Title -->
+			<form id="eventForm">
+				<div class="modal-header">
+					<h5 class="modal-title" id="eventModalTitle"><?= _::uf('new_event') ?></h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+				</div>
+				<div class="modal-body">
 					<div class="mb-3">
 						<label class="form-label">Titre</label>
-						<input type="text" class="form-control" id="eventTitle" required>
+						<input type="text" class="form-control" name="title" required>
 					</div>
-
-					<!-- Start -->
 					<div class="mb-3">
 						<label class="form-label">Date de début</label>
 						<div class="input-group">
-							<input type="datetime-local" class="form-control" id="eventStart" required>
+							<input type="datetime-local" class="form-control" name="start" required>
 							<button type="button" class="btn btn-sm btn-outline-secondary" id="copyStartToEndBtn" tabindex="-1">
 								<i class="bi bi-arrow-down-left-square"></i>
 							</button>
 						</div>
 					</div>
-
-					<!-- End -->
 					<div class="mb-3">
 						<label class="form-label">Date de fin</label>
-						<input type="datetime-local" class="form-control" id="eventEnd">
+						<input type="datetime-local" class="form-control" name="end">
 					</div>
 
-					<!-- All day -->
 <!--					<div class="form-check mb-3">
-						<input class="form-check-input" type="checkbox" id="eventAllDay">
+						<input class="form-check-input" type="checkbox" name="AllDay">
 						<label class="form-check-label">Toute la journée</label>
 					</div>-->
 
 					<div class="mb-3">
 						<label class="form-label">URL</label>
-						<input type="url" class="form-control" id="eventUrl">
+						<input type="url" class="form-control" name="url">
 					</div>
 
-					<!-- Color -->
 <!--					<div class="mb-3">
 						<label class="form-label">Couleur</label>
-						<input type="color" class="form-control form-control-color" id="eventColor">
+						<input type="color" class="form-control form-control-color" name="Color">
 					</div>-->
 
-					<!-- Description -->
 					<div class="mb-3">
 						<label class="form-label">Description</label>
-						<textarea class="form-control" id="eventDescription"></textarea>
+						<textarea class="form-control" name="description"></textarea>
 					</div>
-
-				</form>
-			</div>
-
-			<div class="modal-footer">
-				<button type="button" class="btn btn-sm btn-danger me-auto" id="deleteEventBtn" disabled><?= _::uf('delete') ?></button>
-				<button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal"><?= _::uf('cancel') ?></button>
-				<button type="button" class="btn btn-sm btn-primary" id="saveEventBtn"><?= _::uf('save') ?></button>
-			</div>
-
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-sm btn-danger me-auto" id="deleteEventBtn" disabled><?= _::uf('delete') ?></button>
+					<button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal"><?= _::uf('cancel') ?></button>
+					<button type="reset" class="btn btn-sm btn-secondary"><?= _::uf('reset') ?></button>
+					<button type="button" class="btn btn-sm btn-primary" id="saveEventBtn"><?= _::uf('save') ?></button>
+				</div>
+			</form>
 		</div>
 	</div>
 </div>
@@ -156,25 +150,49 @@ foreach (_::$conf['authentication'] as $source => $data)
 	<div class="modal-dialog">
 		<div class="modal-content">
 			<div class="modal-header">
-				<h5 class="modal-title" id="calendarModalTitle"><?= _::uf('add_calendar') ?></h5>
+				<h5 class="modal-title"><?= _::uf('add_calendar') ?></h5>
 				<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
 			</div>
 			<div class="modal-body">
 				<form id="calendarForm">
-					<input type="hidden" id="calendarId">
 					<div class="mb-3">
 						<label class="form-label"><?= _::uf('calendar_name') ?></label>
-						<input type="text" class="form-control" id="calendarName" required>
+						<input type="text" class="form-control" name="name" placeholder="<?= _::_('min_3_chars') ?>" required>
 					</div>
 					<div class="mb-3">
 						<label class="form-label"><?= _::uf('calendar_description') ?></label>
-						<textarea class="form-control" id="calendarDescription"></textarea>
+						<textarea class="form-control" name="description"></textarea>
 					</div>
 				</form>
 			</div>
 			<div class="modal-footer">
 				<button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal"><?= _::uf('cancel') ?></button>
 				<button type="button" class="btn btn-sm btn-primary" id="saveCalendarBtn"><?= _::uf('save') ?></button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- calendar info modal -->
+<div class="modal fade" id="infoModal" tabindex="-1">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title"><?= _::uf('calendar_info') ?></h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+			</div>
+			<div class="modal-body">
+				<dl>
+					<dt><?= _::uf('calendar_name') ?></dt>
+					<dd id="infoCalendarName"></dd>
+					<dt><?= _::uf('calendar_description') ?></dt>
+					<dd id="infoCalendarDescription"></dd>
+					<dt><?= _::uf('ics_link') ?></dt>
+					<dd><a id="infoIcsLink" href="#" target="_blank"></a></dd>
+				</dl>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal"><?= _::uf('close') ?></button>
 			</div>
 		</div>
 	</div>

@@ -1,52 +1,91 @@
 <?php
 
 return [
-	'secure' => true, // true = force https use
+
+	// Application title displayed in the browser tab
+	'title' => 'PHPFullCalendar',
+
+	// Set to true to enforce HTTPS — strongly recommended in production
+	'secure' => true,
+
+	// Additional HTTP headers sent with every response (CORS, etc.)
+	// Remove or leave empty if not needed
 	'http-headers' => [
-		'Access-Control-Allow-Origin:  http://michel/',
-		'Access-Control-Allow-Methods: GET, POST',
-		'Access-Control-Allow-Headers: Content-Type',
-		'Access-Control-Allow-Credentials: true'
-	], // additional HTTP headers
-	'authentication' => [
-		'method' => 'LDAP',
-		'parameters' => [
-			'host' => 'ldap://ldap.osug.fr:389',
-			'startTLS' => true,
-			'bindDN' => 'uid=%s,ou=people,ou=osug-tous,dc=osug,dc=fr'
-		],
-	'information' => [
-		'method' => 'LDAP',
-		'parameters' => [
-			'host' => 'ldap://ldap.osug.fr:389',
-			'startTLS' => false,
-			'base' => 'ou=people,ou=osug-tous,dc=osug,dc=fr',
-			'filter' => '(&(uid=%s)(objectClass=posixAccount))',
-			'attributes' => ['cn','mail'],
-			'name' => 'cn',
-			'email' => 'mail'
-		],
-	]
-	'session' = [
-		'cookie' => [
-			'name' => 'pfc_session',
-			'ttl' => 3600,
-			'path' => '/',
-			'domain' => 'pfc.osug.fr',
-			'secure' => true,
-			'httpOnly' => true
-		]
-		'handler' => [
-			'memcached',[
-				'port' => 11211,
-				'prefix' => 'pfc_'
-			],
-		]
+		// 'Access-Control-Allow-Origin: https://yourapp.example.com',
+		// 'Access-Control-Allow-Methods: GET, POST',
+		// 'Access-Control-Allow-Headers: Content-Type',
+		// 'Access-Control-Allow-Credentials: true',
 	],
+
+	// Authentication sources — one entry per source
+	// The key is the source name used internally (e.g. in ACL identifiers: "sourcename.login")
+	// Only LDAP is supported for now
+	'authentication' => [
+		'sourcename' => [
+			'method' => 'LDAP',
+			'parameters' => [
+				'host'     => 'ldap://ldap.example.com:389',
+				'startTLS' => true,
+				// %s will be replaced by the login entered by the user
+				'bindDN'   => 'uid=%s,ou=people,dc=example,dc=com',
+			],
+		],
+	],
+
+	// User information retrieval — one entry per authentication source (same keys)
+	'information' => [
+		'sourcename' => [
+			'method' => 'LDAP',
+			'parameters' => [
+				'host'       => 'ldap://ldap.example.com:389',
+				'startTLS'   => true,
+				'base'       => 'ou=people,dc=example,dc=com',
+				// %s will be replaced by the login
+				'filter'     => '(&(uid=%s)(objectClass=posixAccount))',
+				// LDAP attributes to retrieve
+				'attributes' => ['cn', 'mail'],
+				// Which attribute maps to the display name and email
+				'name'       => 'cn',
+				'email'      => 'mail',
+			],
+		],
+	],
+
+	// Group resolution — one entry per authentication source (same keys)
+	// Leave empty if group-based ACL is not needed
+	'groups' => [
+		// 'sourcename' => [ ... ],
+	],
+
+	// Session configuration
+	'session' => [
+		// Session lifetime in seconds
+		'ttl' => 3600,
+
+		'cookie' => [
+			'name'     => 'pfc_session',
+			'path'     => '/',
+			'domain'   => 'pfc.example.com',
+			'secure'   => true,   // should match 'secure' above
+			'httpOnly' => true,
+		],
+
+		// Session storage backend — only memcached is supported for now
+		'handler' => [
+			'name'   => 'memcached',
+			'host'   => '127.0.0.1',
+			'port'   => 11211,
+			'prefix' => 'pfc_',   // key prefix to avoid collisions
+		],
+	],
+
+	// MySQL / MariaDB connection
 	'database' => [
-		'host' => 'localhost',
-		'name' => 'phpFullCalendar',
-		'user' => 'pfc',
-		'pass' => 'pfc'
-	]
+		'driver' => 'mysql',
+		'host'   => 'localhost',
+		'name'   => 'phpFullCalendar',
+		'user'   => 'pfc',
+		'pass'   => 'secret',
+	],
+
 ];

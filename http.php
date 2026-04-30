@@ -205,6 +205,7 @@ class _
 
 	public static function response(string $protocol, string $verb, string $uri)
 	{
+		self::debug('http protocol:%s, verb: %s, uri:%s',$protocol,$verb,$uri);
 		if (! preg_match('|^(/\\$)?(/[a-z]*)?(/[a-z]+)?(/[^?]+)?|i',$uri,$matches))
 			throw new Exception(self::ERROR,'URI syntax error');
 		self::$noSession = ($matches[1] === '/$');
@@ -247,12 +248,16 @@ class _
 		// routing to the right controler is based on class existence.
 		if (! class_exists($class = sprintf('\\PHPFullCalendar\\Controllers\\%s',$controler)))
 			throw new Exception(self::NOT_FOUND,'"%s" not found.',$controler);
+		self::debug('http class:%s, method:%s',$class,$method ?? 'null');
 		$view = (new $class($verb,$method ?? null,$parameters ?? null))->view();
+		self::debug('http view:%s',get_class($view));
 		if (($code = $view->code()) !== 200)
 			header(sprintf('HTTP/1.1 %d %s',$code,$view->message()));
 		if (($mimetype = $view->mimeType()) !== 'text/html')
 			header(sprintf('Content-Type: %s; charset=%s',$view->mimeType(),$view->charset()));
 		// todo : caching
+		foreach (_::$conf['http-headers'] as $header)
+			header($header);
 		foreach ($view->extraHeaders() as $header)
 			header($header);
 		$view->body();
