@@ -10,15 +10,27 @@ class LDAP extends AuthenticationAbstract
 {
 	protected \LDAP\Connection $connection;
 
-	public function verify(string $login, string $password) : ArrayObject
+	public function verify(string $login, string $password) : ArrayObject|null
 	{
 		ldap_set_option(null,LDAP_OPT_X_TLS_REQUIRE_CERT,LDAP_OPT_X_TLS_NEVER);
 		$this->connection = ldap_connect($this->parameters['host'] ?? '');
 		if ($this->connection === false)
 			throw new PFCException(503,'connection to "%s" failed',$this->parameters['host'] ?? 'null');
-		ldap_set_option($this->connection, LDAP_OPT_PROTOCOL_VERSION, 3);
-		if ($this->parameters['startTLS'] ?? true)
-			ldap_start_tls($this->connection);
+		$result = ldap_set_option($this->connection, LDAP_OPT_PROTOCOL_VERSION, 3);
+		$result = $result && ldap_set_option($this->connection, LDAP_OPT_NETWORK_TIMEOUT, $this->parameters['timeout'] ?? 3);
+		$result = $result && ldap_set_option($this->connection, LDAP_OPT_TIMELIMIT, $this->parameters['timelimit'] ?? 3);
+		if (! $result)
+		{
+			_::debug('set_option_failed');
+			$this->error = ldap_error($this->connection);
+			return null;
+		}
+		if (! (($this->parameters['startTLS'] ?? true) && ldap_start_tls($this->connection)))
+		{
+			_::debug('start_tls_failed');
+			$this->error = ldap_error($this->connection);
+			return null;
+		}
 		$dn = sprintf($this->parameters['bindDN'] ?? '%s', ldap_escape($login, '', LDAP_ESCAPE_DN));
 		if ($result = @ldap_bind($this->connection, $dn, $password))
 		{
@@ -32,11 +44,10 @@ class LDAP extends AuthenticationAbstract
 				'informations' => ($this->information === null)?[]:$this->information->get($login),
 				'groups' => ($this->groups === null)?[]:$this->groups->get($login)
 			]);
+			ldap_unbind($this->connection);
+			return $data;
 		}
-		else
-			$data = new ArrayObject();
-		ldap_unbind($this->connection);
-		_::debug('%s',print_r($data,true));
-		return $data;
+		$this->failure();
+		return null;
 	}
 }

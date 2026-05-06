@@ -111,7 +111,8 @@ class Calendar
 	{
 		$stmt = $this->pdo->prepare(
 			'SELECT * FROM event
-			WHERE calendar_id = :calendar_id AND start >= :start AND start < :end'
+			WHERE calendar_id = :calendar_id AND ((start >= :start AND start < :end)
+				OR (start + duration >= :start AND start + duration < :end))'
 		);
 		$stmt->execute([
 			':calendar_id' => $calendar_id,

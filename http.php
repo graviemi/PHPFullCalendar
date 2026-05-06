@@ -53,7 +53,7 @@ class _
 	{
 		error_log(sprintf('-------------------%s%s%s',PHP_EOL,date('d/m/Y H:i:s'),PHP_EOL),3,self::$log_dir.'/'.self::LOG_FILE);
 		error_log(vsprintf($message,$args).PHP_EOL,3,self::$log_dir.'/'.self::LOG_FILE);
-	} 
+	}
 
 	public static function log_access(string $message, string ...$args)
 	{
@@ -69,17 +69,15 @@ class _
 		$message .= PHP_EOL;
 		self::log_error($message);
 		header('HTTP/1.1 500 Internal Server Error');
-		echo $exception->getMessage();
+		echo json_encode($exception->getMessage());
 	}
 
-	public static function error_handler($number, $message, $file, $line)
+	public static function error_handler(int $number, string $message, string $file, int $line) : bool
 	{
-		$message = sprintf('%s : %s'.PHP_EOL,self::$_errors[$number] ?? 'UNKNOWN ERROR',$message);
-		$message .= sprintf('%s on line %d'.PHP_EOL,$file,$line);
-		self::log_error($message);
-		header('HTTP/1.1 500 Internal Server Error');
-		echo $message;
-		return false;
+		$error = sprintf('%s : %s'.PHP_EOL,self::$_errors[$number] ?? 'UNKNOWN ERROR',$message);
+		$error .= sprintf('%s on line %d'.PHP_EOL,$file,$line);
+		self::log_error($error);
+		return true;
 	}
 
 	public static function _(string $key) : string
@@ -97,7 +95,7 @@ class _
 		if (self::$pdo === null)
 			self::$pdo = new PDO(sprintf('%s:dbname=%s;host=%s',self::$conf['database']['driver'],self::$conf['database']['name'],self::$conf['database']['host']),
 				self::$conf['database']['user'],self::$conf['database']['pass']);
-		return self::$pdo;		
+		return self::$pdo;
 	}
 
 	public static function getAuthentication(string $source) : AuthenticationInterface
@@ -144,7 +142,7 @@ class _
 		return self::$session;
 	}
 
-	public static function disconnect()
+	public static function disconnect() : void
 	{
 		self::$userData = new ArrayObject();
 		_::debug('disconnect');
@@ -160,7 +158,9 @@ class _
 
 	public static function denyAccess() : Views\ViewInterface
 	{
-		if (self::$noSession && self::getUserId() === '')
+		$data = self::getUserData();
+		self::debug('%s',print_r($data,true));
+		if (! isset($data['user_id']))
 			return new Views\Unauthorized();
 		return new Views\Forbidden();
 	}
@@ -188,7 +188,7 @@ class _
 			{
 				if (preg_match('/([a-z]+)(-[A-Z]+)?(;q=([0-9.]*))?/',$part,$matches))
 				{
-					$v = (float)($matches[4] ?? 1); 
+					$v = (float)($matches[4] ?? 1);
 					if (($v > $q) && file_exists(sprintf('%s/translations/%s.php',self::$root,$matches[1])))
 					{
 						self::$language = $matches[1];
@@ -256,6 +256,7 @@ class _
 		if (($mimetype = $view->mimeType()) !== 'text/html')
 			header(sprintf('Content-Type: %s; charset=%s',$view->mimeType(),$view->charset()));
 		// todo : caching
+		header('Cache-Control: no-store');
 		foreach (_::$conf['http-headers'] as $header)
 			header($header);
 		foreach ($view->extraHeaders() as $header)

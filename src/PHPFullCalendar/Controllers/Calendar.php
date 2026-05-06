@@ -25,7 +25,7 @@ class Calendar extends ControllerAbstract
 			return _::denyAccess();
 		$name = $_POST['name'] ?? '';
 		if ((strlen($name) === 0) || (strlen($name) > 255))
-			return new BadRequest('name is required');
+			return new BadRequest(_::_('calendar_name_required'));
 		$db = new CalendarDB(_::getPDO());
 		$calendar_id = $db->createCalendar($name, $_POST['description'] ?? null);
 		$acl->setCalendarAuthorization($calendar_id, $user_data['source'] ?? '', $user_data['user_id'] ?? '', 'user', ACL::CAL_ACL);
@@ -54,7 +54,7 @@ class Calendar extends ControllerAbstract
 		if (! preg_match('|^(\d+)$|', $this->parameters, $matches))
 			return new NotFound();
 		if (($name = $_POST['name'] ?? null) === null)
-			return new BadRequest('name is required');
+			return new BadRequest(_::_('calendar_name_required'));
 		$db = new CalendarDB(_::getPDO());
 		if ($db->getCalendar((int) $matches[1]) === false)
 			return new NotFound();

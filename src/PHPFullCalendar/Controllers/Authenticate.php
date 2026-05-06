@@ -13,7 +13,8 @@ class Authenticate extends ControllerAbstract
 {
 	protected function _get_check()
 	{
-		return new Json(isSet(_::getUserData()['user_id']));
+		$userData = _::getUserData();
+		return new Json(isSet($userData['user_id']));
 	}
 
 	protected function _get_sources()
@@ -29,7 +30,8 @@ class Authenticate extends ControllerAbstract
 		$auth = _::getAuthentication($_POST['source']);
 		_::debug('auth');
 		if (($data = $auth->verify($_POST['user_id'] ?? '',$_POST['password'] ?? '')) === null)
-			return new Forbidden('wrong identifier or password');
+			return new Forbidden($auth->getError());
+		_::debug('auth pas null');
 		_::debug(print_r($data,true));
 		foreach ($data as $key => $value)
 			_::getSession()[$key] = $value;

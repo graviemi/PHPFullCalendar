@@ -13,6 +13,7 @@ abstract class AuthenticationAbstract implements AuthenticationInterface
 	protected array $parameters = [];
 	protected InformationInterface|null $information = null;
 	protected GroupInterface|null $groups = null;
+	protected string $error;
 
 	public function __construct(string $source, array $parameters, array $information, array $groups)
 	{
@@ -32,5 +33,15 @@ abstract class AuthenticationAbstract implements AuthenticationInterface
 				throw new Exception(_::NOT_FOUND,'unknown groups method "%s"',$groups['method']);
 			$this->groups = new $class($groups['parameters']);
 		}
+	}
+
+	protected function failure() : void
+	{
+		$this->error = _::_('wrong_login_or_password');
+	}
+
+	public function getError() : string
+	{
+		return $this->error;
 	}
 }

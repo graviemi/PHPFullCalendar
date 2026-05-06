@@ -66,6 +66,8 @@ class Ics extends ViewAbstract
 		$realm = _::$conf['realm'] ?? 'phpfullcalendar';
 		$dtstamp = gmdate('Ymd\THis\Z');
 
+		_::debug('%s',print_r($this->events,true));
+
 		foreach ($this->events as $event)
 		{
 			$startSec = $event['start'] * 60;

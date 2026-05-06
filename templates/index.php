@@ -1,6 +1,6 @@
-<?php 
+<?php
 
-namespace PHPFullCalendar; 
+namespace PHPFullCalendar;
 
 $sources_options = '';
 foreach (_::$conf['authentication'] as $source => $data)
@@ -12,7 +12,7 @@ foreach (_::$conf['authentication'] as $source => $data)
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title><?= _::$conf['title'] ?></title>
-	<link rel="icon" href="/public/icons/favicon.ico">                                                                                                                                                                                  
+	<link rel="icon" href="/public/icons/favicon.ico">
 	<link rel="apple-touch-icon" sizes="180x180" href="/public/icons/apple-touch-icon.png">
 	<link rel="icon" type="image/png" sizes="32x32" href="/public/icons/favicon-32x32.png">
 	<link rel="icon" type="image/png" sizes="16x16" href="/public/icons/favicon-16x16.png">
@@ -23,7 +23,7 @@ foreach (_::$conf['authentication'] as $source => $data)
 	<script src="https://ressources.osug.fr/bootstrap-5.3.3-dist/js/bootstrap.min.js"></script>
 	<script src="https://ressources.osug.fr/scripts/ical.min.js"></script>
 	<script src="https://ressources.osug.fr/scripts/fullcalendar-6.1.15/dist/index.global.min.js"></script>
-	<script src="https://ressources.osug.fr/scripts/fullcalendar-6.1.15/packages/core/locales-all.global.min.js"></script>	
+	<script src="https://ressources.osug.fr/scripts/fullcalendar-6.1.15/packages/core/locales-all.global.min.js"></script>
 <!--	<script src="https://ressources.osug.fr/scripts/fullcalendar-6.1.15/packages/core/index.global.min.js"></script>
 	<script src="https://ressources.osug.fr/scripts/fullcalendar-6.1.15/packages/timegrid/index.global.min.js"></script>-->
 	<script src="https://ressources.osug.fr/scripts/sweetalert.min.js"></script>
@@ -65,7 +65,7 @@ foreach (_::$conf['authentication'] as $source => $data)
 		</div>
 		<div class="d-flex align-items-center gap-3">
 			<span class="text-body-secondary" id="userNameLabel"><?= _::uf('anonymous') ?></span>
-			<button class="btn btn-sm btn-outline-primary" id="disconnectBtn">
+			<button class="btn btn-sm btn-outline-primary" id="disconnectBtn" disabled>
 				<i class="bi bi-box-arrow-right"></i> <?= _::uf('disconnect') ?>
 			</button>
 		</div>
@@ -86,10 +86,15 @@ foreach (_::$conf['authentication'] as $source => $data)
 	</div>
 <div id="pfc-tooltip"></div>
 
+<!-- loading overlay -->
+<div id="loadingOverlay">
+	<div class="spinner-border text-light" style="width:3rem;height:3rem;" role="status"></div>
+</div>
+
 <!-- event modal -->
 <div class="modal fade" id="eventModal" tabindex="-1">
 	<div class="modal-dialog">
-		<div class="modal-content">		
+		<div class="modal-content">
 			<form id="eventForm">
 				<div class="modal-header">
 					<h5 class="modal-title" id="eventModalTitle"><?= _::uf('new_event') ?></h5>
@@ -352,7 +357,7 @@ foreach (_::$conf['authentication'] as $source => $data)
 							</td>
 						</tr>
 					</tfoot>
-				</table>	
+				</table>
 				<hr>
 				<table class="table table-sm table-hover mb-3">
 					<thead>
@@ -418,7 +423,7 @@ foreach (_::$conf['authentication'] as $source => $data)
 <!-- login modal -->
 <div class="modal fade" id="loginModal" tabindex="-1">
 	<div class="modal-dialog">
-		<div class="modal-content">		
+		<div class="modal-content">
 			<div class="modal-header">
 				<h5 class="modal-title"><?= _::uf('auth') ?></h5>
 				<button type="button" class="btn-close" data-bs-dismiss="modal"></button>

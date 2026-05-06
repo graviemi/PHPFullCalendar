@@ -4,6 +4,7 @@ namespace PHPFullCalendar\Controllers;
 
 use PHPFullCalendar\_,
 	PHPFullCalendar\Database\ACL,
+	PHPFullCalendar\Views\ViewInterface,
 	PHPFullCalendar\Views\Json,
 	PHPFullCalendar\Views\Ok,
 	PHPFullCalendar\Views\BadRequest,
@@ -11,13 +12,13 @@ use PHPFullCalendar\_,
 
 class Authorization extends ControllerAbstract
 {
-	protected function _get_global()
+	protected function _get_global() : ViewInterface
 	{
 		$acl = new ACL(_::getPDO());
 		return new Json($acl->getGlobalAuthorization(_::getUserData()));
 	}
 
-	protected function _get_calendar()
+	protected function _get_calendar() : ViewInterface
 	{
 		if (! preg_match('|^(\d+)$|', $this->parameters, $matches))
 			return new \PHPFullCalendar\Views\NotFound('unknown calendar ID "%s"',$this->parameters);
@@ -26,7 +27,7 @@ class Authorization extends ControllerAbstract
 		return new Json($acl->getCalendarAuthorization($calendar_id,_::getUserData()));
 	}
 
-	protected function _get_globalacl()
+	protected function _get_globalacl() : ViewInterface
 	{
 		$acl = new ACL(_::getPDO());
 		if (($acl->getGlobalAuthorization(_::getUserData()) & ACL::GR_ACL) === 0)
@@ -34,7 +35,7 @@ class Authorization extends ControllerAbstract
 		return new Json($acl->getGlobalACLList());
 	}
 
-	protected function _post_globalacl()
+	protected function _post_globalacl() : ViewInterface
 	{
 		$userData = _::getUserData();
 		$acl = new ACL(_::getPDO());
@@ -59,12 +60,13 @@ class Authorization extends ControllerAbstract
 		return new Ok();
 	}
 
-	protected function _delete_globalacl()
+	protected function _delete_globalacl() : ViewInterface
 	{
 		$userData = _::getUserData();
 		$acl = new ACL(_::getPDO());
 		if (($acl->getGlobalAuthorization($userData) & ACL::GR_ACL) === 0)
 			return _::denyAccess();
+		$body = [];
 		parse_str(file_get_contents('php://input'), $body);
 		$source = $body['source'] ?? '';
 		$identifier = $body['identifier'] ?? '';
@@ -81,11 +83,11 @@ class Authorization extends ControllerAbstract
 		return new Ok();
 	}
 
-	protected function _get_resource()
+	protected function _get_resource() : void
 	{
 	}
 
-	protected function _get_calendaracl()
+	protected function _get_calendaracl() : ViewInterface
 	{
 		if (! preg_match('|^(\d+)$|', $this->parameters, $matches))
 			return new NotFound();
@@ -96,7 +98,7 @@ class Authorization extends ControllerAbstract
 		return new Json($acl->getCalendarACLList($calendar_id));
 	}
 
-	protected function _post_calendaracl()
+	protected function _post_calendaracl() : ViewInterface
 	{
 		if (! preg_match('|^(\d+)$|', $this->parameters, $matches))
 			return new NotFound();
@@ -122,7 +124,7 @@ class Authorization extends ControllerAbstract
 		return new Ok();
 	}
 
-	protected function _delete_calendaracl()
+	protected function _delete_calendaracl() : ViewInterface
 	{
 		if (! preg_match('|^(\d+)$|', $this->parameters, $matches))
 			return new NotFound();
@@ -131,6 +133,7 @@ class Authorization extends ControllerAbstract
 		$acl = new ACL(_::getPDO());
 		if ($acl->getCalendarAuthorization($calendar_id, $userData) < ACL::CAL_ACL)
 			return _::denyAccess();
+		$body = [];
 		parse_str(file_get_contents('php://input'), $body);
 		$source = $body['source'] ?? '';
 		$identifier = $body['identifier'] ?? '';

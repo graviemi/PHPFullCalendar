@@ -1,10 +1,10 @@
 
-PHPFullCalendar = (function () 
+PHPFullCalendar = (function ()
 {
 	var _translations;
 	var _modals = {};
 	var _calendar; // FullCalendar.js
-	var _calendar_id = null; // selected calendar unique database id 
+	var _calendar_id = null; // selected calendar unique database id
 	var _globalsAuth = 0; // connected user global authorizations
 	var _calendarAuth = 0; // connected user selected calendar authorizations
 	var _event_id = null; // clicked calendar event unique database id
@@ -13,6 +13,8 @@ PHPFullCalendar = (function ()
 	var _sources = null;
 	var _levels;
 	var _globalPermissions;
+	var _pendingRequests = 0;
+	var _loadingTimer = null;
 	const _globalACLIcons = {
 		val1: ['calendar-plus','gr_cal_create'],
 		val2: ['calendar-x','gr_cal_destroy'],
@@ -26,12 +28,32 @@ PHPFullCalendar = (function ()
 		return _translations[text_key] ?? text_key;
 	}
 
+	function _loadingShow()
+	{
+		_pendingRequests++;
+		if (_pendingRequests === 1)
+			_loadingTimer = setTimeout(() => document.getElementById('loadingOverlay').classList.add('active'), 300);
+	}
+
+	function _loadingHide()
+	{
+		_pendingRequests--;
+		if (_pendingRequests === 0)
+		{
+			clearTimeout(_loadingTimer);
+			document.getElementById('loadingOverlay').classList.remove('active');
+		}
+	}
+
 	async function _request(url, options = {})
 	{
+		_loadingShow();
 		const response = await fetch(url, options);
+//		console.log(response.status);
 		if (response.status === 400)
 		{
 			const data = await response.json();
+			_loadingHide();
 			swal({
 				title: _('error'),
 				text: _(data['message'] ?? _('unknown_error')),
@@ -39,18 +61,10 @@ PHPFullCalendar = (function ()
 			});
 			return null;
 		}
-		if (response.status === 401)
-		{
-			if (! _ask_for_login)
-			{
-				_ask_for_login = true;
-				_getModal('login').show();
-			}
-			return null;
-		}
 		if (response.status === 403)
 		{
 			const data = await response.json();
+			_loadingHide();
 			swal({
 				title: _('unauthorized'),
 				text: _(data['message'] ?? _('unknown_error')),
@@ -58,16 +72,28 @@ PHPFullCalendar = (function ()
 			});
 			return null;
 		}
+		if (response.status === 401)
+		{
+			_loadingHide();
+			if (! _ask_for_login)
+			{
+				_ask_for_login = true;
+				_getModal('login').show();
+			}
+			return null;
+		}
+		_loadingHide();
 		if (response.ok)
 			return response;
 		return null;
 	}
 
-	function _checkConnection()
+	async function _checkConnection()
 	{
-		return fetch('/Authenticate/check').then(response =>
-			response.ok ? response.json() : false
-		);
+		const response = await fetch('/Authenticate/check');
+		if (response.ok)
+			return await response.json();
+		return false;
 	}
 
 	function _enable(button_id, enabled)
@@ -79,6 +105,7 @@ PHPFullCalendar = (function ()
 	{
 		_enable('addCalendarBtn',(_globalsAuth & 1) === 1);
 		_enable('manageGlobalAclBtn',((_globalsAuth & 16) === 16));
+		_enable('disconnectBtn',_user_infos !== null);
 	}
 
 	function _getUserInformations()
@@ -167,8 +194,10 @@ PHPFullCalendar = (function ()
 		_enable('removeCalendarBtn', (_calendarAuth >= 4) && (_globalsAuth & 2) === 2);
 		calendar.removeAttribute('data-hidden');
 		no_calendar.setAttribute('data-hidden', 'true');
+//		_calendar.removeAllEvents();
 		_calendar.removeAllEventSources();
 		_calendar.addEventSource({ url: `/Event/list/${_calendar_id}` });
+//		_calendar.refetchEvents();
 		_calendar.render();
 	}
 
@@ -189,10 +218,10 @@ PHPFullCalendar = (function ()
 	}
 
 	function _utcToDateTimeLocal(str)
-	{                                                                                                                                                                                                                                           
+	{
 		if (! str) return '';
-		const d = new Date(str);                                                                                                                                                                                                                
-		const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);                                                                                                                                                                    
+		const d = new Date(str);
+		const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
 		return local.toISOString().substring(0, 16);
 	}
 
@@ -321,7 +350,7 @@ PHPFullCalendar = (function ()
 	{
 		const resp = await _request(`/Authorization/calendaracl/${_calendar_id}`);
 		if (resp === null)
-			return;
+			return false;
 		const acls = await resp.json();
 		const special = acls.filter((acl) => {return acl.type === 'special'});
 		const tbodySpecial = document.getElementById('calendarSpecialAclList');
@@ -340,9 +369,9 @@ PHPFullCalendar = (function ()
 						'data-type': acl.type
 					},
 					content: [
-						{ tag: 'td', content: (acl.identifier === 'anonymous')?_('anonymous'):`${_(connected)} (${(acl.source === '')?_('all'):acl.source})`},
-						{ 
-							tag: 'td', 
+						{ tag: 'td', content: (acl.identifier === 'anonymous')?_('anonymous'):`${_('connected')} (${(acl.source === '')?_('all'):acl.source})`},
+						{
+							tag: 'td',
 							content: _selectElement({
 								options: _levels,
 								value: acl.authorization,
@@ -355,7 +384,7 @@ PHPFullCalendar = (function ()
 								tag: 'button',
 								attrs: {class: 'btn btn-sm btn-outline-danger'},
 								content: [
-									{tag: 'i', attrs: { class: 'bi bi-trash' } }	
+									{tag: 'i', attrs: { class: 'bi bi-trash' } }
 								],
 								events: {
 									click: async function(event) { _calendarAclDelete(event.target.closest('tr').dataset) }
@@ -373,7 +402,7 @@ PHPFullCalendar = (function ()
 		if (regular.length === 0)
 		{
 			tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">${_('no_acl')}</td></tr>`;
-			return;
+			return true;
 		}
 		for (const acl of regular)
 		{
@@ -388,8 +417,8 @@ PHPFullCalendar = (function ()
 					{ tag: 'td', content: acl.source },
 					{ tag: 'td', content: acl.identifier},
 					{ tag: 'td', content: _('type_' + acl.type)},
-					{ 
-						tag: 'td', 
+					{
+						tag: 'td',
 						content: _selectElement({
 							options: _levels.slice(1),
 							value: acl.authorization,
@@ -403,7 +432,7 @@ PHPFullCalendar = (function ()
 							attrs: {class: 'btn btn-sm btn-outline-danger'},
 							content: {tag: 'i', attrs: { class: 'bi bi-trash' } },
 							events: {
-								click: async function() { _calendarAclDelete(event.target.closest('tr').dataset) }
+								click: async function(event) { _calendarAclDelete(event.target.closest('tr').dataset) }
 							}
 						}
 					}
@@ -411,13 +440,14 @@ PHPFullCalendar = (function ()
 			});
 			tbody.appendChild(tr);
 		}
+		return true;
 	}
 
 	function _globalACLCheck(acl,changeHandler)
 	{
 		acl = Number(acl);
 		const children = [];
-		for (b = 1; b <= 16; b *= 2)
+		for (let b = 1; b <= 16; b *= 2)
 		{
 			let key = `val${b}`;
 			children.push({
@@ -455,7 +485,7 @@ PHPFullCalendar = (function ()
 
 	async function _globalAclSave(data)
 	{
-		r = await _request('/Authorization/globalacl', {
+		const r = await _request('/Authorization/globalacl', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
 			body: new URLSearchParams(data)
@@ -503,7 +533,7 @@ PHPFullCalendar = (function ()
 	{
 		const resp = await _request('/Authorization/globalacl');
 		if (resp === null)
-			return;
+			return false;
 		const acls = await resp.json();
 
 		const special = acls.filter((acl) => {return acl.type === 'special'});
@@ -530,21 +560,18 @@ PHPFullCalendar = (function ()
 					{
 						tag: 'td',
 						content: {
-							tag: 'td', 
+							tag: 'button',
+							attrs: {
+								class: 'btn btn-sm btn-outline-danger'
+							},
 							content: {
-								tag: 'button',
+								tag: 'i',
 								attrs: {
-									class: 'btn btn-sm btn-outline-danger'
-								},
-								content: {
-									tag: 'i', 
-									attrs: {
-										class: 'bi bi-trash'
-									}
-								},
-								events: {
-									click: function (event) {_globalAclDelete(event.target.closest('tr').dataset)}
+									class: 'bi bi-trash'
 								}
+							},
+							events: {
+								click: function (event) {_globalAclDelete(event.target.closest('tr').dataset)}
 							}
 						}
 					}
@@ -587,14 +614,14 @@ PHPFullCalendar = (function ()
 							content: _globalACLCheck(acl.authorization,function (event) {_globalACLUpdate(event)})
 						},
 						{
-							tag: 'td', 
+							tag: 'td',
 							content: {
 								tag: 'button',
 								attrs: {
 									class: 'btn btn-sm btn-outline-danger'
 								},
 								content: {
-									tag: 'i', 
+									tag: 'i',
 									attrs: {
 										class: 'bi bi-trash'
 									}
@@ -608,14 +635,15 @@ PHPFullCalendar = (function ()
 				}));
 			}
 		}
+		return true;
 	}
 
 	// constructeur
 	function construct(lang,sources)
 	{
 		_sources = sources;
-		const self = this;	
-		fetch('/index/translations',{}).then(async function (response) 
+		const self = this;
+		fetch('/index/translations',{}).then(async function (response)
 		{
 			if (response.ok)
 				_translations = await response.json();
@@ -638,7 +666,7 @@ PHPFullCalendar = (function ()
 			_calendar = new FullCalendar.Calendar(document.getElementById('calendar'),{
 				'locale': lang,
 		//		'height': 'auto',
-//				'plugins': [timeGridPlugin],                                                                                                                                                                                                              
+//				'plugins': [timeGridPlugin],
 				'headerToolbar': {
 					'left': 'prev,next today',
 					'center': 'title',
@@ -689,7 +717,7 @@ PHPFullCalendar = (function ()
 				const response = await _request(`/Calendar/read/${_calendar_id}`);
 				if (response === null)
 					return;
-				data = await response.json();
+				const data = await response.json();
 				const form = document.getElementById('calendarForm');
 				form.reset();
 				form.querySelectorAll('[name]').forEach(field => field.value = data[field.name]);
@@ -764,8 +792,8 @@ PHPFullCalendar = (function ()
 				const response = await _request(`/Event/read/${_event_id}`);
 				if (response === null)
 					return;
-				data = await response.json();
-				console.log(data);
+				const data = await response.json();
+//				console.log(data);
 				const form = document.getElementById('eventForm');
 				form.reset();
 				form.querySelectorAll('[name]').forEach((field) => {
@@ -778,16 +806,16 @@ PHPFullCalendar = (function ()
 			document.getElementById('addEventBtn').addEventListener('click', function () {
 				_event_id = null;
 				document.getElementById('eventForm').reset();
+				_enable('deleteEventBtn',false);
 				_getModal('event').show();
 			});
 			document.getElementById('copyStartToEndBtn').addEventListener('click', function () {
 				const form = document.getElementById('eventForm');
-				console.log(form.querySelector('input[name=start]').value);
+//				console.log(form.querySelector('input[name=start]').value);
 //				form.querySelector('input[name=end]').value = _toDateTimeLocal(form.querySelector('input[name=start]').value);
 				form.querySelector('input[name=end]').value = form.querySelector('input[name=start]').value;
 			});
 			document.getElementById('saveEventBtn').addEventListener('click', async function (event) {
-				const fields = document.getElementById('eventForm').querySelectorAll('[name]');
 				const data = {};
 				document.getElementById('eventForm').querySelectorAll('[name]').forEach(field => {
 					if (field.value && (field.name === 'start' || field.name === 'end'))
@@ -795,7 +823,7 @@ PHPFullCalendar = (function ()
 					else
 						data[field.name] = field.value;
 				});
-				console.log(data);
+//				console.log(data);
 				const url = _event_id ? `/Event/update/${_event_id}` : `/Event/create/${_calendar_id}`;
 				const response = await _request(url,
 				{
@@ -827,15 +855,10 @@ PHPFullCalendar = (function ()
 
 			// Calendar ACL managment
 
-			document.getElementById('manageCalendarAclBtn').addEventListener('click', function ()
-			{
-				_calendarAclLoad();
-				_getModal('calendarAcl').show();
-			});
-			document.getElementById('manageGlobalAclBtn').addEventListener('click', function ()
-			{
-				_globalAclLoad();
-				_getModal('globalAcl').show();
+			document.getElementById('manageCalendarAclBtn').addEventListener('click', async function () {
+				const success = await _calendarAclLoad();
+				if (success)
+					_getModal('calendarAcl').show();
 			});
 			document.getElementById('globalAclAddSpecial').addEventListener('click', function (event) {
 				const tr = event.target.closest('tr')
@@ -874,6 +897,15 @@ PHPFullCalendar = (function ()
 				fields.forEach((field) => {data[field.name] = field.value});
 				_calendarAclSave(data);
 			});
+
+			// Global ACL
+
+			document.getElementById('manageGlobalAclBtn').addEventListener('click', async function () {
+				const success = await _globalAclLoad();
+				if (success)
+					_getModal('globalAcl').show();
+			});
+
 			_showCalendar();
 			_checkConnection().then(connected => {
 				if ((! connected) && (! _ask_for_login))
@@ -889,52 +921,49 @@ PHPFullCalendar = (function ()
 			});
 		});
 	}
-	
+
 	construct.prototype.connect = async function()
 	{
 		_ask_for_login = false;
 		const source = document.getElementById('loginSource').value;
 		const user_id = document.getElementById('loginUserId').value;
 		const password = document.getElementById('loginPassword').value;
+		_loadingShow();
 		const response = await fetch('/Authenticate/connect',
 		{
 			method: 'POST',
 			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
 			body: new URLSearchParams({ source, user_id, password })
 		});
+		_loadingHide();
 		if (response.ok)
 		{
 			_getModal('login').hide();
 			_getUserInformations();
 			_refreshCalendarsList();
+			return true;
 		}
-		else if (response.status === 403)
-			swal({
-				title: _('auth_failed'),
-				text: _('wrong_login_or_pwd'),
-				icon: "error"
-			})
-		else
-		{
-			const message = await response.json();
-			swal({
-				title: message,
-				text: _('internal_error'),
-				icon: "error"
-			})
-		}
-		return response.ok;
+		const message = await response.json();
+		swal({
+			title: _('auth_failed'),
+			text: message,
+			icon: "error"
+		})
+		return false;
 	}
 
 	construct.prototype.disconnect = async function()
 	{
 		const response = await fetch('/User/disconnect');
+		_globalsAuth = 0;
+		_calendarAuth = 0;
+		_user_infos = null;
+		_toggleButtons();
 		if (response.ok)
 			location.reload();
 		else
 			swal({
-				title: message,
-				text: _('internal_error'),
+				title: _('internal_error'),
 				icon: "error"
 			});
 	}
