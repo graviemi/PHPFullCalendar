@@ -167,7 +167,7 @@ foreach (_::$conf['authentication'] as $source => $data)
 <div class="modal fade" id="eventModal" tabindex="-1">
 	<div class="modal-dialog">
 		<div class="modal-content">
-			<form id="eventForm">
+			<form id="eventForm" onsubmit="event.preventDefault()">
 				<div class="modal-header">
 					<h5 class="modal-title" id="eventModalTitle"><?= _::uf('new_event') ?></h5>
 					<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -215,7 +215,7 @@ foreach (_::$conf['authentication'] as $source => $data)
 					<button type="button" class="btn btn-sm btn-danger me-auto" id="deleteEventBtn" disabled><?= _::uf('delete') ?></button>
 					<button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal"><?= _::uf('cancel') ?></button>
 					<button type="reset" class="btn btn-sm btn-secondary"><?= _::uf('reset') ?></button>
-					<button type="button" class="btn btn-sm btn-primary" id="saveEventBtn"><?= _::uf('save') ?></button>
+					<button type="submit" class="btn btn-sm btn-primary" id="saveEventBtn"><?= _::uf('save') ?></button>
 				</div>
 			</form>
 		</div>
@@ -226,12 +226,12 @@ foreach (_::$conf['authentication'] as $source => $data)
 <div class="modal fade" id="calendarModal" tabindex="-1">
 	<div class="modal-dialog">
 		<div class="modal-content">
-			<div class="modal-header">
-				<h5 class="modal-title"><?= _::uf('add_calendar') ?></h5>
-				<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-			</div>
-			<div class="modal-body">
-				<form id="calendarForm">
+			<form id="calendarForm" onsubmit="event.preventDefault()">
+				<div class="modal-header">
+					<h5 class="modal-title"><?= _::uf('add_calendar') ?></h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+				</div>
+				<div class="modal-body">
 					<div class="mb-3">
 						<label class="form-label"><?= _::uf('calendar_name') ?></label>
 						<input type="text" class="form-control" name="name" placeholder="<?= _::_('min_3_chars') ?>" required>
@@ -240,12 +240,12 @@ foreach (_::$conf['authentication'] as $source => $data)
 						<label class="form-label"><?= _::uf('calendar_description') ?></label>
 						<textarea class="form-control" name="description"></textarea>
 					</div>
-				</form>
-			</div>
-			<div class="modal-footer">
-				<button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal"><?= _::uf('cancel') ?></button>
-				<button type="button" class="btn btn-sm btn-primary" id="saveCalendarBtn"><?= _::uf('save') ?></button>
-			</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal"><?= _::uf('cancel') ?></button>
+					<button type="submit" class="btn btn-sm btn-primary" id="saveCalendarBtn"><?= _::uf('save') ?></button>
+				</div>
+			</form>
 		</div>
 	</div>
 </div>
@@ -279,6 +279,7 @@ foreach (_::$conf['authentication'] as $source => $data)
 <div class="modal fade" id="calendarAclModal" tabindex="-1">
 	<div class="modal-dialog modal-lg">
 		<div class="modal-content">
+			<form id="calendarAclForm" onsubmit="event.preventDefault()">
 			<div class="modal-header">
 				<h5 class="modal-title"><?= _::uf('manage_calendar_acl') ?></h5>
 				<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -368,6 +369,7 @@ foreach (_::$conf['authentication'] as $source => $data)
 			<div class="modal-footer">
 				<button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal"><?= _::uf('close') ?></button>
 			</div>
+			</form>
 		</div>
 	</div>
 </div>
@@ -376,6 +378,7 @@ foreach (_::$conf['authentication'] as $source => $data)
 <div class="modal fade" id="globalAclModal" tabindex="-1">
 	<div class="modal-dialog modal-xl">
 		<div class="modal-content">
+			<form id="globalAclForm" onsubmit="event.preventDefault()">
 			<div class="modal-header">
 				<h5 class="modal-title"><?= _::uf('manage_global_acl') ?></h5>
 				<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -488,6 +491,7 @@ foreach (_::$conf['authentication'] as $source => $data)
 			<div class="modal-footer">
 				<button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal"><?= _::uf('close') ?></button>
 			</div>
+			</form>
 		</div>
 	</div>
 </div>
@@ -496,12 +500,12 @@ foreach (_::$conf['authentication'] as $source => $data)
 <div class="modal fade" id="loginModal" tabindex="-1">
 	<div class="modal-dialog">
 		<div class="modal-content">
-			<div class="modal-header">
-				<h5 class="modal-title"><?= _::uf('auth') ?></h5>
-				<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-			</div>
-			<div class="modal-body">
-				<form id="loginForm">
+			<form id="loginForm" onsubmit="event.preventDefault()">
+				<div class="modal-header">
+					<h5 class="modal-title"><?= _::uf('auth') ?></h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+				</div>
+				<div class="modal-body">
 					<div class="mb-3">
 						<label class="form-label"><?= _::uf('acl_source') ?></label>
 						<select class="form-select" id="loginSource">
@@ -516,12 +520,11 @@ foreach (_::$conf['authentication'] as $source => $data)
 						<label class="form-label"><?= _::uf('password') ?></label>
 						<input type="password" class="form-control" id="loginPassword">
 					</div>
-				</form>
-			</div>
-
-			<div class="modal-footer">
-				<button type="button" class="btn btn-sm btn-primary" id="loginBtn"><?= _::uf('connect') ?></button>
-			</div>
+				</div>
+				<div class="modal-footer">
+					<button type="submit" class="btn btn-sm btn-primary" id="loginBtn"><?= _::uf('connect') ?></button>
+				</div>
+			</form>
 		</div>
 	</div>
 </div>
