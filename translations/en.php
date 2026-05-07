@@ -2,6 +2,18 @@
 
 return [
 	'acl_add' => 'add',
+	'help' => 'help',
+	'help_title' => 'Help',
+	'help_intro_title' => 'Introduction',
+	'help_intro_body' => 'PHPFullCalendar lets you manage one or more personal or shared calendars. Calendars can then be displayed or imported on various devices using specific web addresses. Refer to the help sections below for more details.',
+	'help_calendars_title' => 'Calendars',
+	'help_calendars_body' => 'Your calendars are listed in the left column. Click a calendar to display it. The toolbar buttons let you add, edit or delete the selected calendar.',
+	'help_events_title' => 'Events',
+	'help_events_body' => 'Click on a time slot to create an event. Click an existing event to edit or delete it. The "+" button can also be used to create an event.',
+	'help_acl_title' => 'Access rights',
+	'help_acl_body' => 'The access rights button lets you control who can access a calendar and at what level: free/busy, read, write or admin.',
+	'help_ics_title' => 'ICS export',
+	'help_ics_body' => 'The calendar info button shows an ICS link to import the calendar into an external application (Thunderbird, Apple Calendar…).',
 	'calendar_name_required' => 'Calendar name is required (1 to 255 characters)',
 	'start_and_end_required' => 'start and end parameters are required',
 	'all' => 'all',

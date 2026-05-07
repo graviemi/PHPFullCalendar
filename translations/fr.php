@@ -2,6 +2,19 @@
 
 return [
 	'acl_add' => 'ajouter',
+	'help' => 'aide',
+	'help_title' => 'Aide',
+	'help_intro_title' => 'Introduction',
+	'help_intro_body' => 'PHPFullCalendar permet de gérer un ou plusieurs calendriers personnels ou partagés. Les calendriers peuvent ensuite être affichés ou importés sur
+	différents supports grâce à des adresses web spécifiques. Reporter-vous à l\'aide de chacune des rubriques ci-dessous pour plus de détails.',
+	'help_calendars_title' => 'Calendriers',
+	'help_calendars_body' => 'La liste de vos calendriers apparaît dans la colonne de gauche. Cliquez sur un calendrier pour l\'afficher. Les boutons de la barre permettent d\'ajouter, modifier ou supprimer le calendrier sélectionné.',
+	'help_events_title' => 'Événements',
+	'help_events_body' => 'Cliquez sur une plage horaire pour créer un événement. Cliquez sur un événement existant pour le modifier ou le supprimer. Le bouton "+" permet également de créer un événement.',
+	'help_acl_title' => 'Droits d\'accès',
+	'help_acl_body' => 'Le bouton de gestion des droits permet de contrôler qui peut accéder à un calendrier et avec quel niveau : disponibilités, lecture, écriture ou administration.',
+	'help_ics_title' => 'Export ICS',
+	'help_ics_body' => 'Le bouton d\'information d\'un calendrier affiche un lien ICS permettant d\'importer le calendrier dans une application externe (Thunderbird, Apple Calendar…).',
 	'calendar_name_required' => 'Le nom du calendrier est obligatoire (1 à 255 caractères)',
 	'start_and_end_required' => 'Les paramètres start et end sont obligatoires',
 	'all' => 'tous',
