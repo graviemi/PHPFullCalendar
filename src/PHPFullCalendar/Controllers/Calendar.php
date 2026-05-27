@@ -38,6 +38,12 @@ class Calendar extends ControllerAbstract
 		return new Json($db->getManagedCalendars(_::getUserData()));
 	}
 
+	public function _get_readable()
+	{
+		$db = new CalendarDB(_::getPDO());
+		return new Json($db->getManagedCalendars(_::getUserData(),2));
+	}
+
 	public function _get_read()
 	{
 		if (! preg_match('|^(\d+)$|', $this->parameters, $matches))

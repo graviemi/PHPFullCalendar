@@ -85,6 +85,57 @@ div.acl_checkboxes label:has(> input:checked) {
 	color: #0d6efd;
 }
 
+.ics-drop-zone {
+	border: 2px dashed var(--bs-border-color);
+	border-radius: .5rem;
+	padding: 2.5rem 1rem;
+	text-align: center;
+	cursor: pointer;
+	transition: border-color .2s, background-color .2s;
+}
+
+.ics-drop-zone:hover,
+.ics-drop-zone.drag-over {
+	border-color: var(--bs-primary);
+	background-color: var(--bs-primary-bg-subtle);
+}
+
+.ics-drop-zone.has-file {
+	border-color: var(--bs-success);
+	background-color: var(--bs-success-bg-subtle);
+}
+
+.ics-drop-icon {
+	font-size: 3rem;
+	color: var(--bs-secondary-color);
+	display: block;
+	margin-bottom: .75rem;
+	transition: color .2s;
+}
+
+.ics-drop-zone:hover .ics-drop-icon,
+.ics-drop-zone.drag-over .ics-drop-icon {
+	color: var(--bs-primary);
+}
+
+.ics-drop-zone.has-file .ics-drop-icon {
+	color: var(--bs-success);
+}
+
+.ics-drop-label {
+	font-weight: 500;
+	margin-bottom: .25rem;
+}
+
+.ics-drop-hint {
+	font-size: .85rem;
+	color: var(--bs-secondary-color);
+}
+
+#icsFileInput {
+	display: none;
+}
+
 #loadingOverlay {
 	display: none;
 	position: fixed;

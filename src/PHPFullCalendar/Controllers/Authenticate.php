@@ -27,6 +27,7 @@ class Authenticate extends ControllerAbstract
 
 	protected function _post_connect()
 	{
+		usleep(random_int(1100,11000));
 		$auth = _::getAuthentication($_POST['source']);
 		_::debug('auth');
 		if (($data = $auth->verify($_POST['user_id'] ?? '',$_POST['password'] ?? '')) === null)

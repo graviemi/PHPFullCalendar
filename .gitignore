@@ -4,3 +4,5 @@
 /rsync-exclude.txt
 /sync.sh
 /logs
+/oTools
+/php-rrule

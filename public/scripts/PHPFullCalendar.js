@@ -15,6 +15,8 @@ PHPFullCalendar = (function ()
 	var _globalPermissions;
 	var _pendingRequests = 0;
 	var _loadingTimer = null;
+	var _icsFile = null;
+
 	const _globalACLIcons = {
 		val1: ['calendar-plus','gr_cal_create'],
 		val2: ['calendar-x','gr_cal_destroy'],
@@ -132,7 +134,10 @@ PHPFullCalendar = (function ()
 	{
 		const element = document.getElementById(`${name}Modal`);
 		if (element === null)
+		{
+			console.log(`${name}Modal element not found`)
 			return null;
+		}
 		if (! _modals.hasOwnProperty(name))
 			_modals[name] = new bootstrap.Modal(element);
 		return _modals[name];
@@ -177,6 +182,7 @@ PHPFullCalendar = (function ()
 		{
 			_calendarAuth = 0;
 			_enable('addEventBtn', false);
+			_enable('importICSBtn', false);
 			_enable('calendarInfoBtn', false);
 			_enable('editCalendarBtn', false);
 			_enable('manageCalendarAclBtn', false);
@@ -188,6 +194,7 @@ PHPFullCalendar = (function ()
 		const response = await _request(`/Authorization/calendar/${_calendar_id}`);
 		_calendarAuth = response !== null ? await response.json() : 0;
 		_enable('addEventBtn', _calendarAuth >= 3);
+		_enable('importICSBtn', _calendarAuth >= 3);
 		_enable('calendarInfoBtn', _calendarAuth >= 1);
 		_enable('editCalendarBtn', _calendarAuth >= 3);
 		_enable('manageCalendarAclBtn', _calendarAuth >= 4);
@@ -638,6 +645,26 @@ PHPFullCalendar = (function ()
 		return true;
 	}
 
+	function _icsSetFile(file)
+	{
+		_icsFile = file;
+		icsDropZone.classList.add('has-file');
+		icsDropZone.classList.remove('drag-over');
+		icsFileName.textContent = file.name;
+		icsFileName.removeAttribute('data-hidden');
+		_enable('doImportIcsBtn',true);
+	}
+	
+	function _icsReset()
+	{
+		_icsFile = null;
+		icsFileInput.value = '';
+		icsDropZone.classList.remove('has-file', 'drag-over');
+		icsFileName.setAttribute('data-hidden', 'true');
+		icsFileName.textContent = '';
+		_enable('doImportIcsBtn',false);
+	}
+
 	// constructeur
 	function construct(lang,sources)
 	{
@@ -851,6 +878,39 @@ PHPFullCalendar = (function ()
 				const ev = _calendar.getEventById(_event_id);
 				if (ev) ev.remove();
 				_getModal('event').hide();
+			});
+
+			// ICS import
+
+			const icsDropZone    = document.getElementById('icsDropZone');
+			const icsFileInput   = document.getElementById('icsFileInput');
+			const icsFileName    = document.getElementById('icsFileName');
+
+			icsDropZone.addEventListener('click', () => icsFileInput.click());
+			icsDropZone.addEventListener('dragover', e => { e.preventDefault(); icsDropZone.classList.add('drag-over'); });
+			icsDropZone.addEventListener('dragleave', () => icsDropZone.classList.remove('drag-over'));
+			icsDropZone.addEventListener('drop', e => {
+				e.preventDefault();
+				const file = e.dataTransfer.files[0];
+				if (file) _icsSetFile(file);
+			});
+			icsFileInput.addEventListener('change', () => {
+				if (icsFileInput.files[0]) _icsSetFile(icsFileInput.files[0]);
+			});
+			doImportIcsBtn.addEventListener('click', async function () {
+				if (!_icsFile || _calendar_id === null) return;
+				const text = await _icsFile.text();
+				const response = await _request(`/Event/ics/${_calendar_id}`, {
+					method: 'PUT',
+					headers: { 'Content-Type': 'text/calendar' },
+					body: text
+				});
+				if (response === null) return;
+				const result = await response.json();
+				_icsReset();
+				_getModal('importIcs').hide();
+				_showCalendar();
+				swal({ title: _('import_ics'), text: _('ics_import_success').replace('%d', result.imported), icon: 'success' });
 			});
 
 			// Calendar ACL managment

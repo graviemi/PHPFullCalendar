@@ -1,4 +1,9 @@
 /*M!999999\- enable the sandbox mode */ 
+-- MariaDB dump 10.19  Distrib 10.11.14-MariaDB, for debian-linux-gnu (x86_64)
+--
+-- Host: localhost    Database: phpFullCalendar
+-- ------------------------------------------------------
+-- Server version	10.11.14-MariaDB-0ubuntu0.24.04.1
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -10,6 +15,11 @@
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+
+--
+-- Table structure for table `calendar`
+--
+
 DROP TABLE IF EXISTS `calendar`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
@@ -18,8 +28,13 @@ CREATE TABLE `calendar` (
   `name` varchar(255) NOT NULL,
   `description` text DEFAULT NULL,
   PRIMARY KEY (`calendar_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `calendarACL`
+--
+
 DROP TABLE IF EXISTS `calendarACL`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
@@ -35,6 +50,11 @@ CREATE TABLE `calendarACL` (
   CONSTRAINT `calendarACL_ibfk_1` FOREIGN KEY (`calendar_id`) REFERENCES `calendar` (`calendar_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `event`
+--
+
 DROP TABLE IF EXISTS `event`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
@@ -45,15 +65,24 @@ CREATE TABLE `event` (
   `duration` int(10) unsigned DEFAULT NULL COMMENT 'minutes',
   `until` int(10) unsigned DEFAULT NULL COMMENT 'UNIX timestamp / 60 (minutes)',
   `frequency` enum('dayly','weekly','monthly','yearly') DEFAULT NULL COMMENT 'RRule',
+  `rrule` text DEFAULT NULL,
   `title` varchar(255) NOT NULL,
   `description` text DEFAULT NULL,
+  `location` text DEFAULT NULL,
+  `position` varchar(32) DEFAULT NULL,
+  `color` varchar(64) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL,
   `url` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`event_id`),
   KEY `calendar_id` (`calendar_id`),
   KEY `title` (`title`),
   CONSTRAINT `event_ibfk_1` FOREIGN KEY (`calendar_id`) REFERENCES `calendar` (`calendar_id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=35 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `globalACL`
+--
+
 DROP TABLE IF EXISTS `globalACL`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
@@ -65,6 +94,11 @@ CREATE TABLE `globalACL` (
   PRIMARY KEY (`source`,`identifier`,`type`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `resource`
+--
+
 DROP TABLE IF EXISTS `resource`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
@@ -80,6 +114,11 @@ CREATE TABLE `resource` (
   UNIQUE KEY `name` (`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `resourceAttribut`
+--
+
 DROP TABLE IF EXISTS `resourceAttribut`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
@@ -91,6 +130,11 @@ CREATE TABLE `resourceAttribut` (
   UNIQUE KEY `resourceType_id` (`resourceType_id`,`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `resourceType`
+--
+
 DROP TABLE IF EXISTS `resourceType`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
@@ -101,6 +145,11 @@ CREATE TABLE `resourceType` (
   UNIQUE KEY `name` (`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `ressourceACL`
+--
+
 DROP TABLE IF EXISTS `ressourceACL`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
@@ -125,3 +174,4 @@ CREATE TABLE `ressourceACL` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
+-- Dump completed on 2026-05-27 12:20:00

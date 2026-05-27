@@ -28,20 +28,14 @@ class Calendar
 		return $stmt->fetch(\PDO::FETCH_ASSOC);
 	}
 
-	public function getCalendars() : array
-	{
-		$stmt = $this->pdo->query('SELECT * FROM calendar');
-		return $stmt->fetchAll(\PDO::FETCH_ASSOC);
-	}
-
-	public function getManagedCalendars(ArrayObject|Session $data) : array
+	public function getManagedCalendars(ArrayObject|Session $data, int $level = 3) : array
 	{
 		$sql = 'SELECT c.calendar_id, c.name, c.description, MAX(a.authorization) AS authorization
 			FROM calendar c
 			INNER JOIN calendarACL a ON a.calendar_id = c.calendar_id
-			WHERE (a.authorization >= 3) AND ((a.identifier = "anonymous" AND a.type = "special")';
+			WHERE (a.authorization >= :level) AND ((a.identifier = "anonymous" AND a.type = "special")';
 		$source = $data['source'];
-		$params = [];
+		$params = [':level' => $level];
 		if (isset($data['user_id']))
 		{
 			$sql .= ' OR (a.source = "" AND a.identifier = "authenticated" AND a.type = "special")';
@@ -129,25 +123,33 @@ class Calendar
 		int|null $duration = null,
 		int|null $until = null,
 		string|null $frequency = null,
+		string|null $rrule = null,
 		string|null $description = null,
-		string|null $url = null
+		string|null $location = null,
+		string|null $position = null,
+		string|null $url = null,
+		string|null $color = null
 	) : int
 	{
 		$stmt = $this->pdo->prepare(
 			'INSERT INTO event
-				(calendar_id, start, duration, until, frequency, title, description, url)
+				(calendar_id, start, duration, until, frequency, rrule, title, description, location, position, url, color)
 			VALUES
-				(:calendar_id, :start, :duration, :until, :frequency, :title, :description, :url)'
+				(:calendar_id, :start, :duration, :until, :frequency, :rrule, :title, :description, :location, :position, :url, :color)'
 		);
 		$stmt->execute([
 			':calendar_id' => $calendar_id,
-			':start' => $start,
-			':duration' => $duration,
-			':until' => $until,
-			':frequency' => $frequency,
-			':title' => $title,
+			':start'       => $start,
+			':duration'    => $duration,
+			':until'       => $until,
+			':frequency'   => $frequency,
+			':rrule'       => $rrule,
+			':title'       => $title,
 			':description' => $description,
-			':url' => $url
+			':location'    => $location,
+			':position'    => $position,
+			':url'         => $url,
+			':color'       => $color,
 		]);
 		return (int) $this->pdo->lastInsertId();
 	}
@@ -159,26 +161,35 @@ class Calendar
 		int|null $duration = null,
 		int|null $until = null,
 		string|null $frequency = null,
+		string|null $rrule = null,
 		string|null $description = null,
-		string|null $url = null
+		string|null $location = null,
+		string|null $position = null,
+		string|null $url = null,
+		string|null $color = null
 	) : bool
 	{
 		$stmt = $this->pdo->prepare(
 			'UPDATE event
 			SET start = :start, duration = :duration, until = :until,
-				frequency = :frequency, title = :title,
-				description = :description, url = :url
+				frequency = :frequency, rrule = :rrule, title = :title,
+				description = :description, location = :location, position = :position,
+				url = :url, color = :color
 			WHERE event_id = :event_id'
 		);
 		return $stmt->execute([
-			':event_id' => $event_id,
-			':start' => $start,
-			':duration' => $duration,
-			':until' => $until,
-			':frequency' => $frequency,
-			':title' => $title,
+			':event_id'    => $event_id,
+			':start'       => $start,
+			':duration'    => $duration,
+			':until'       => $until,
+			':frequency'   => $frequency,
+			':rrule'       => $rrule,
+			':title'       => $title,
 			':description' => $description,
-			':url' => $url
+			':location'    => $location,
+			':position'    => $position,
+			':url'         => $url,
+			':color'       => $color,
 		]);
 	}
 

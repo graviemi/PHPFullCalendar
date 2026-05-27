@@ -8,40 +8,44 @@ foreach (_::$conf['authentication'] as $source => $data)
 
 ?><!DOCTYPE html>
 <html>
-<head>
-	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title><?= _::$conf['title'] ?></title>
-	<link rel="icon" href="/public/icons/favicon.ico">
-	<link rel="apple-touch-icon" sizes="180x180" href="/public/icons/apple-touch-icon.png">
-	<link rel="icon" type="image/png" sizes="32x32" href="/public/icons/favicon-32x32.png">
-	<link rel="icon" type="image/png" sizes="16x16" href="/public/icons/favicon-16x16.png">
-	<link href="https://ressources.osug.fr/styles/bootstrap.min.css" rel="stylesheet">
-	<link href="https://ressources.osug.fr/bootstrap-icons-1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-	<link href="https://ressources.osug.fr/fonts/open-sans.css" rel="stylesheet">
-	<link href="/public/styles/main.css" rel="stylesheet">
-	<script src="https://ressources.osug.fr/bootstrap-5.3.3-dist/js/bootstrap.min.js"></script>
-	<script src="https://ressources.osug.fr/scripts/ical.min.js"></script>
-	<script src="https://ressources.osug.fr/scripts/fullcalendar-6.1.15/dist/index.global.min.js"></script>
-	<script src="https://ressources.osug.fr/scripts/fullcalendar-6.1.15/packages/core/locales-all.global.min.js"></script>
-<!--	<script src="https://ressources.osug.fr/scripts/fullcalendar-6.1.15/packages/core/index.global.min.js"></script>
-	<script src="https://ressources.osug.fr/scripts/fullcalendar-6.1.15/packages/timegrid/index.global.min.js"></script>-->
-	<script src="https://ressources.osug.fr/scripts/sweetalert.min.js"></script>
-	<script src="/public/scripts/PHPFullCalendar.js"></script>
-	<script type="application/javascript">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title><?= _::$conf['title'] ?></title>
+		<link rel="icon" href="/public/icons/favicon.ico">
+		<link rel="apple-touch-icon" sizes="180x180" href="/public/icons/apple-touch-icon.png">
+		<link rel="icon" type="image/png" sizes="32x32" href="/public/icons/favicon-32x32.png">
+		<link rel="icon" type="image/png" sizes="16x16" href="/public/icons/favicon-16x16.png">
+		<link href="https://ressources.osug.fr/styles/bootstrap.min.css" rel="stylesheet">
+		<link href="https://ressources.osug.fr/bootstrap-icons-1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+		<link href="https://ressources.osug.fr/fonts/open-sans.css" rel="stylesheet">
+		<link href="/public/styles/main.css" rel="stylesheet">
+		<script src="https://ressources.osug.fr/bootstrap-5.3.3-dist/js/bootstrap.min.js"></script>
+		<script src="https://ressources.osug.fr/scripts/ical.min.js"></script>
+		<script src="https://ressources.osug.fr/scripts/fullcalendar-6.1.15/dist/index.global.min.js"></script>
+		<script src="https://ressources.osug.fr/scripts/fullcalendar-6.1.15/packages/core/locales-all.global.min.js"></script>
+		<script src="https://ressources.osug.fr/scripts/sweetalert.min.js"></script>
+		<script src="/public/scripts/PHPFullCalendar.js"></script>
+		<script type="application/javascript">
+		window.addEventListener('focus', () => {
+			console.log('PFC focus');
+		});
 		document.addEventListener('DOMContentLoaded', () => {
 			const pfc = new PHPFullCalendar('<?= _::$language ?>',[<?php
 				foreach (_::$conf['authentication'] as $source => $data)
 					printf('[\'%s\',\'%s (%s)\']',$source,$source,$data['method']);
 			?>]);
 		});
-	</script>
-</head>
+		</script>
+	</head>
 <body>
 	<nav class="navbar bg-body-tertiary px-3">
 		<div class="d-flex gap-2">
 			<button class="btn btn-sm btn-outline-primary" id="addEventBtn" disabled>
 				<i class="bi bi-plus-circle-fill"></i> <?= _::uf('event') ?>
+			</button>
+			<button class="btn btn-sm btn-outline-primary" id="importICSBtn" data-bs-toggle="modal" data-bs-target="#importIcsModal" disabled>
+				<i class="bi bi-cloud-upload-fill"></i> <?= _::uf('import_ics') ?>
 			</button>
 			<button class="btn btn-sm btn-outline-primary" id="calendarInfoBtn" disabled>
 				<i class="bi bi-info-circle-fill"></i> <?= _::uf('calendar') ?>
@@ -68,7 +72,7 @@ foreach (_::$conf['authentication'] as $source => $data)
 			<button class="btn btn-sm btn-outline-primary" id="disconnectBtn" disabled>
 				<i class="bi bi-box-arrow-right"></i> <?= _::uf('disconnect') ?>
 			</button>
-			<button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#helpModal">
+			<button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#helpModal">
 				<i class="bi bi-question-circle"></i>
 			</button>
 		</div>
@@ -158,6 +162,31 @@ foreach (_::$conf['authentication'] as $source => $data)
 	</div>
 </div>
 
+<!-- import ICS modal -->
+<div class="modal fade" id="importIcsModal" tabindex="-1">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title"><i class="bi bi-file-earmark-arrow-up me-2"></i><?= _::uf('import_ics') ?></h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+			</div>
+			<div class="modal-body">
+				<div id="icsDropZone" class="ics-drop-zone">
+					<i class="bi bi-cloud-upload ics-drop-icon"></i>
+					<div class="ics-drop-label"><?= _::_('ics_drop_label') ?></div>
+					<div class="ics-drop-hint"><?= _::_('ics_drop_hint') ?></div>
+					<input type="file" id="icsFileInput" accept=".ics,text/calendar">
+				</div>
+				<div id="icsFileName" class="mt-2 text-center text-body-secondary small" data-hidden="true"></div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal"><?= _::uf('cancel') ?></button>
+				<button type="button" class="btn btn-sm btn-primary" id="doImportIcsBtn" disabled><?= _::uf('import') ?></button>
+			</div>
+		</div>
+	</div>
+</div>
+
 <!-- loading overlay -->
 <div id="loadingOverlay">
 	<div class="spinner-border text-light" style="width:3rem;height:3rem;" role="status"></div>
@@ -201,10 +230,10 @@ foreach (_::$conf['authentication'] as $source => $data)
 						<input type="url" class="form-control" name="url">
 					</div>
 
-<!--					<div class="mb-3">
+					<div class="mb-3">
 						<label class="form-label">Couleur</label>
 						<input type="color" class="form-control form-control-color" name="Color">
-					</div>-->
+					</div>
 
 					<div class="mb-3">
 						<label class="form-label">Description</label>
