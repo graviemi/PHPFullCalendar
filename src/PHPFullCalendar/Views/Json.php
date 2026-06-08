@@ -6,8 +6,9 @@ class Json extends ViewAbstract
 {
 	protected $data;
 
-	public function __construct($data = null)
+	public function __construct($data = null, int|null $lastModified = null)
 	{
+		$this->lastModified = $lastModified;
 		$this->data = $data;
 	}
 

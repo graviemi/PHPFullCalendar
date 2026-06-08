@@ -24,7 +24,7 @@ class _
 		E_USER_WARNING => 'warning',
 		E_USER_NOTICE => 'notice'
 	];
-	public static $root;
+	public static string $root;
 	public static array $conf = [];
 	public static array $sources = [];
 	public static string $language = 'en';

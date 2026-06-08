@@ -16,174 +16,128 @@ use DateTimeImmutable,
 	PHPFullCalendar\Views\FreeBusy,
 	PHPFullCalendar\Views\Ok,
 	PHPFullCalendar\Views\BadRequest,
-	PHPFullCalendar\Views\NotFound;
+	PHPFullCalendar\Views\NotFound,
+	PHPFullCalendar\Views\NotModified;
 
 class Event extends ControllerAbstract
 {
+	protected static array $eventFields = [
+		'title', 'description', 'rrule', 'location', 'position', 'color', 'url'
+	];
 	protected static array $validation = [
-		"title" => ['/^.{3,255}$/', "title_required"],
-		"start" => [
+		'title' => ['/^.{3,255}$/', 'title_required'],
+		'start' => [
 			'/^\d{4,4}-\d{2,2}-\d{2,2}T\d{2,2}:\d{2,2}:00\.000Z$/',
-			"start_date_required",
+			'start_date_required',
 		],
 		'end' => [
 			'/^(|\d{4,4}-\d{2,2}-\d{2,2}T\d{2,2}:\d{2,2}:00\.000Z)$/',
-			"wrong_end_date_format",
+			'wrong_end_date_format',
 		],
-		"url" => ['/^.{0,2000}$/', "url_too_long"],
-		"color" => ['/^#[0-9a-f]{6}$/','unknown_color'],
-		"description" => ['/^.{0,65535}$/s', "description_too_long"],
+		'url' => ['/^.{0,2000}$/', 'url_too_long'],
+		'color' => ['/^#[0-9a-f]{6}$/','unknown_color'],
+		'description' => ['/^.{0,65535}$/s', 'description_too_long'],
 	];
 
 	protected function _control(array $raw_data): string|null
 	{
-		foreach (self::$validation as $key => $rules) {
-			if (!preg_match($rules[0], $raw_data[$key] ?? "")) {
+		foreach (self::$validation as $key => $rules)
+		{
+			if (!preg_match($rules[0], $raw_data[$key] ?? ""))
 				return $rules[1];
-			}
 		}
 		return null;
 	}
 
-	protected static function _get_start_and_duration(
-		string $start,
-		string $end,
-	): array {
+	protected static function _get_start_and_duration(string $start, string $end) : array
+	{
 		$start_ts = floor((new DateTimeImmutable($start))->getTimestamp() / 60);
-		if ($end !== "") {
+		if ($end !== "")
+		{
 			$end_ts = floor((new DateTimeImmutable($end))->getTimestamp() / 60);
 			return [$start_ts, $end_ts - $start_ts];
 		}
-		return [$start_ts, null];
+		return [$start_ts, 0];
 	}
 
 	protected function _post_create()
 	{
-		if (!preg_match('|^(\d+)$|', $this->parameters, $matches)) {
+		if (!preg_match('|^(\d+)$|', $this->parameters, $matches))
 			return new NotFound();
-		}
 		$calendar_id = (int) $matches[1];
 		$acl = new ACL(_::getPDO());
-		if (
-			$acl->getCalendarAuthorization($calendar_id, _::getUserData()) <
-			ACL::CAL_WRITE
-		) {
+		if ($acl->getCalendarAuthorization($calendar_id, _::getUserData()) < ACL::CAL_WRITE)
 			return _::denyAccess();
-		}
-
-		if (($message = self::_control($_POST)) !== null) {
+		if (($message = self::_control($_POST)) !== null)
 			return new BadRequest(_::_($message));
-		}
-		[$start, $duration] = self::_get_start_and_duration(
-			$_POST["start"],
-			$_POST["end"],
-		);
-		if ($duration !== null && $duration < 1) {
-			return new BadRequest(_::_("end_after_start_required"));
-		}
-
+		$data = [];
+		foreach (self::$eventFields as $name)
+			$data[$name] = ($_POST[$name] === '')?null:$_POST[$name];
+		[$data['start'],$data['duration']] = self::_get_start_and_duration($_POST['start'],$_POST['end']);
+		if ($data['duration'] < 0)
+			return new BadRequest(_::_('end_after_start_required'));
+		if (($_POST['rrule_active'] ?? '0') !== '1')
+			$data['rrule'] = null;
+		$data['until'] = self::_computeUntil($data['rrule'], $data['start']);
 		$db = new CalendarDB(_::getPDO());
-		$event_id = $db->createEvent(
-			$calendar_id,
-			$start,
-			$_POST["title"],
-			$duration,
-			null,
-			null,
-			$_POST["description"] ?? null,
-			$_POST["url"] ?? null,
-		);
-
-		return new Json($event_id);
+		return new Json($db->createEvent($calendar_id, $data));
 	}
 
 	protected function _get_read()
 	{
-		if (!preg_match('|^(\d+)$|', $this->parameters, $matches)) {
+		if (!preg_match('|^(\d+)$|', $this->parameters, $matches))
 			return new NotFound();
-		}
 		$event_id = (int) $matches[1];
 
 		$db = new CalendarDB(_::getPDO());
 		$event = $db->getEvent($event_id);
-		if ($event === false) {
+		if ($event === false)
 			return new NotFound();
-		}
 
 		$acl = new ACL(_::getPDO());
-		if (
-			$acl->getCalendarAuthorization(
-				$event["calendar_id"],
-				_::getUserData(),
-			) < ACL::CAL_READ
-		) {
+		if ($acl->getCalendarAuthorization($event['calendar_id'],_::getUserData(),) < ACL::CAL_READ)
 			return _::denyAccess();
-		}
 
-		$startSec = $event["start"] * 60;
+		$startSec = $event['start'] * 60;
 		return new Json([
-			"event_id" => $event["event_id"],
-			"calendar_id" => $event["calendar_id"],
-			"title" => $event["title"],
-			"start" => gmdate("Y-m-d\TH:i:s\Z", $startSec),
-			"end" =>
-				$event["duration"] !== null
-					? gmdate(
-						"Y-m-d\TH:i:s\Z",
-						$startSec + $event["duration"] * 60,
-					)
-					: null,
-			"description" => $event["description"],
-			"url" => $event["url"],
+			'event_id' => $event['event_id'],
+			'calendar_id' => $event['calendar_id'],
+			'title' => $event['title'],
+			'start' => gmdate('Y-m-d\TH:i:s\Z', $startSec),
+			'end' => $event['duration'] !== null ? gmdate('Y-m-d\TH:i:s\Z',$startSec + $event['duration'] * 60) : null,
+			'location' => $event['location'],
+			'position' => $event['position'],
+			'description' => $event['description'],
+			'color' => $event['color'],
+			'url' => $event['url'],
+			'rrule' => $event['rrule']
 		]);
 	}
 
 	protected function _post_update()
 	{
-		if (!preg_match('|^(\d+)$|', $this->parameters, $matches)) {
+		if (!preg_match('|^(\d+)$|', $this->parameters, $matches))
 			return new NotFound();
-		}
 		$event_id = (int) $matches[1];
-
 		$db = new CalendarDB(_::getPDO());
 		$event = $db->getEvent($event_id);
-		if ($event === false) {
+		if ($event === false)
 			return new NotFound();
-		}
-
 		$acl = new ACL(_::getPDO());
-		if (
-			$acl->getCalendarAuthorization(
-				$event["calendar_id"],
-				_::getUserData(),
-			) < ACL::CAL_WRITE
-		) {
+		if ($acl->getCalendarAuthorization($event['calendar_id'],_::getUserData()) < ACL::CAL_WRITE)
 			return _::denyAccess();
-		}
-
-		if (($message = self::_control($_POST)) !== null) {
+		if (($message = self::_control($_POST)) !== null)
 			return new BadRequest(_::_($message));
-		}
-
-		[$start, $duration] = self::_get_start_and_duration(
-			$_POST["start"],
-			$_POST["end"],
-		);
-		if ($duration !== null && $duration < 1) {
-			return new BadRequest(_::_("end_after_start_required"));
-		}
-
-		$db->updateEvent(
-			$event_id,
-			$start,
-			$_POST["title"],
-			$duration,
-			null,
-			null,
-			$_POST["description"] ?? null,
-			$_POST["url"] ?? null,
-		);
-
+		$data = [];
+		foreach (self::$eventFields as $name)
+			$data[$name] = ($_POST[$name] === '')?null:$_POST[$name];
+		[$data['start'],$data['duration']] = self::_get_start_and_duration($_POST['start'],$_POST['end']);
+		if ($data['duration'] < 0)
+			return new BadRequest(_::_('end_after_start_required'));
+		if (($_POST['rrule_active'] ?? '0') !== '1')
+			$data['rrule'] = null;
+		$data['until'] = self::_computeUntil($data['rrule'], $data['start']);
+		$db->updateEvent($event_id, $data);
 		return new Ok();
 	}
 
@@ -202,7 +156,7 @@ class Event extends ControllerAbstract
 		$acl = new ACL(_::getPDO());
 		if (
 			$acl->getCalendarAuthorization(
-				$event["calendar_id"],
+				$event['calendar_id'],
 				_::getUserData(),
 			) < ACL::CAL_WRITE
 		) {
@@ -215,57 +169,76 @@ class Event extends ControllerAbstract
 
 	protected function _get_list()
 	{
-		if (!preg_match('|^(\d+)$|', $this->parameters, $matches)) {
+		if (!preg_match('|^(\d+)$|', $this->parameters, $matches))
 			return new NotFound();
-		}
 		$calendar_id = (int) $matches[1];
 
 		$acl = new ACL(_::getPDO());
-		if (
-			$acl->getCalendarAuthorization($calendar_id, _::getUserData()) <
-			ACL::CAL_FREE_BUSY
-		)
+		if ($acl->getCalendarAuthorization($calendar_id, _::getUserData()) < ACL::CAL_FREE_BUSY)
 			return _::denyAccess();
 
-		$start = isset($_GET["start"])
-			? (int) (strtotime($_GET["start"]) / 60)
-			: null;
-		$end = isset($_GET["end"])
-			? (int) (strtotime($_GET["end"]) / 60)
-			: null;
-		if ($start === null || $end === null) {
+		try
+		{
+			$start = floor((new DateTimeImmutable($_GET['start']))->getTimestamp() / 60);
+			$end = floor((new DateTimeImmutable($_GET['end']))->getTimestamp() / 60);
+		}
+		catch (Exception $e)
+		{
 			return new BadRequest(_::_('start_and_end_required'));
 		}
 
 		$db = new CalendarDB(_::getPDO());
+		$calendar = $db->getCalendar($calendar_id);
 		$events = $db->getEvents($calendar_id, $start, $end);
+		$endDt = new DateTimeImmutable('@'.($end * 60));
+		$lastModified = (int) $calendar['modified'];
+		$ifModifiedSince = isset($_SERVER['HTTP_IF_MODIFIED_SINCE']) ? (int) strtotime($_SERVER['HTTP_IF_MODIFIED_SINCE']) : 0;
 
 		$result = [];
 		foreach ($events as $event) {
-			$startSec = $event["start"] * 60;
+			$startSec = $event['start'] * 60;
 			$entry = [
-				"id" => $event["event_id"],
-				"title" => $event["title"],
-				"start" => gmdate("Y-m-d\TH:i:s\Z", $startSec),
+				'id' => $event['event_id'],
+				'title' => $event['title'],
 			];
-			if ($event["duration"] !== null) {
-				$entry["end"] = gmdate(
-					"Y-m-d\TH:i:s\Z",
-					$startSec + $event["duration"] * 60,
-				);
+			if ($event['rrule'] !== null && $event['rrule'] !== '') {
+				try {
+					$rruleObj = new \RRule\RRule($event['rrule'], new DateTimeImmutable('@'.$startSec));
+					$beginDt = new DateTimeImmutable('@'.(($start - ($event['duration'] ?? 0)) * 60));
+					if (empty($rruleObj->getOccurrencesBetween($beginDt, $endDt, 1)))
+						continue;
+				} catch (\Exception $e) {
+					continue;
+				}
+				$entry['rrule'] = 'DTSTART:'.gmdate('Ymd\THis\Z', $startSec).chr(10).'RRULE:'.$event['rrule'];
+				if ($event['duration'] !== null)
+					$entry['duration'] = sprintf('%02d:%02d', intdiv($event['duration'], 60), $event['duration'] % 60);
+			} else {
+				$entry['start'] = gmdate('Y-m-d\TH:i:s\Z', $startSec);
+				if ($event['duration'] !== null)
+					$entry['end'] = gmdate('Y-m-d\TH:i:s\Z', $startSec + $event['duration'] * 60);
 			}
-			if ($event["url"] !== null) {
-				$entry["url"] = $event["url"];
-			}
-			if ($event["description"] !== null) {
-				$entry["extendedProps"] = [
-					"description" => $event["description"],
-				];
-			}
+			if ($event['color'] !== null)
+				$entry['color'] = $event['color'];
+			if ($event['url'] !== null)
+				$entry['url'] = $event['url'];
+			$extendedProps = [];
+			if ($event['description'] !== null)
+				$extendedProps['description'] = $event['description'];
+			if ($event['location'] !== null)
+				$extendedProps['location'] = $event['location'];
+			if ($event['position'] !== null)
+				$extendedProps['position'] = $event['position'];
+			if ($extendedProps)
+				$entry['extendedProps'] = $extendedProps;
+			if ((int) $event['modified'] > $lastModified)
+				$lastModified = (int) $event['modified'];
 			$result[] = $entry;
 		}
 
-		return new Json($result);
+		if ($ifModifiedSince > 0 && $lastModified <= $ifModifiedSince)
+			return new NotModified();
+		return new Json($result, $lastModified ?: null);
 	}
 
 	protected function _get_ics()
@@ -284,18 +257,14 @@ class Event extends ControllerAbstract
 		if ($calendar === false)
 			return new NotFound();
 
-		_::debug("%s", print_r($calendar, true));
-
-		$six_month = new DateInterval("P6M");
+		$six_month = new DateInterval('P6M');
 		$start = floor((new DateTimeImmutable())->sub($six_month)->getTimestamp() / 60);
 		$end = floor((new DateTimeImmutable())->add($six_month)->getTimestamp() / 60);
 
-		_::debug("start: %s, end: %s", $start, $end);
 		$events = $db->getEvents($calendar_id, $start, $end);
-		_::debug("%s", print_r($events, true));
 		if ($auth === ACL::CAL_FREE_BUSY)
-			return new FreeBusy($calendar["name"], $events);
-		return new Ics($calendar["name"], $events);
+			return new FreeBusy($calendar['name'], $events);
+		return new Ics($calendar['name'], $events);
 	}
 
 	protected function _put_ics()
@@ -352,39 +321,21 @@ class Event extends ControllerAbstract
 		elseif (($durationProp = $vevent->getProperty('DURATION')) !== null)
 			$duration = self::_parseDuration($durationProp->getRawValue());
 
-		$rrule     = $vevent->getProperty('RRULE')?->getRawValue();
-		$frequency = null;
-		$until     = null;
+		$rrule = $vevent->getProperty('RRULE')?->getRawValue();
+		$until = self::_computeUntil($rrule, $start);
 
-		if ($rrule !== null)
-		{
-			if (preg_match('/(?:^|;)FREQ=([A-Z]+)/', $rrule, $m))
-				$frequency = match(strtoupper($m[1])) {
-					'DAILY'   => 'dayly',
-					'WEEKLY'  => 'weekly',
-					'MONTHLY' => 'monthly',
-					'YEARLY'  => 'yearly',
-					default   => null,
-				};
-
-			if (preg_match('/(?:^|;)UNTIL=(\d{8}(?:T\d{6}Z?)?)(?:;|$)/', $rrule, $m))
-				$until = self::_parseUntil($m[1]);
-		}
-
-		return $db->createEvent(
-			$calendar_id,
-			$start,
-			$title,
-			$duration,
-			$until,
-			$frequency,
-			$rrule,
-			$vevent->getProperty('DESCRIPTION')?->getRawValue(),
-			$vevent->getProperty('LOCATION')?->getRawValue(),
-			null,
-			$vevent->getProperty('URL')?->getRawValue(),
-			$vevent->getProperty('COLOR')?->getRawValue(),
-		);
+		return $db->createEvent($calendar_id, [
+			'start'    => $start,
+			'duration' => $duration,
+			'until'    => $until,
+			'rrule'    => $rrule,
+			'title'       => $title,
+			'description' => $vevent->getProperty('DESCRIPTION')?->getRawValue(),
+			'location'    => $vevent->getProperty('LOCATION')?->getRawValue(),
+			'position'    => null,
+			'url'         => $vevent->getProperty('URL')?->getRawValue(),
+			'color'       => $vevent->getProperty('COLOR')?->getRawValue(),
+		]);
 	}
 
 	private static function _parseDuration(string $value) : int|null
@@ -396,6 +347,21 @@ class Event extends ControllerAbstract
 		if (preg_match('/^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:\d+S)?)?$/', $value, $m))
 			return ((int) ($m[1] ?? 0)) * 1440 + ((int) ($m[2] ?? 0)) * 60 + (int) ($m[3] ?? 0);
 		return null;
+	}
+
+	private static function _computeUntil(string|null $rrule, int $startMinutes) : int|null
+	{
+		if ($rrule === null)
+			return null;
+		try {
+			$rruleObj = new \RRule\RRule($rrule, new DateTimeImmutable('@'.($startMinutes * 60)));
+			if ($rruleObj->isInfinite())
+				return 0;
+			$last = $rruleObj[count($rruleObj) - 1];
+			return (int) floor($last->getTimestamp() / 60);
+		} catch (\Exception $e) {
+			return 0;
+		}
 	}
 
 	private static function _parseUntil(string $value) : int|null

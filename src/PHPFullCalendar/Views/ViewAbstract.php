@@ -4,6 +4,9 @@ namespace PHPFullCalendar\Views;
 
 abstract class ViewAbstract implements ViewInterface
 {
+	protected array $extraHeaders = [];
+	protected int|null $lastModified = null;
+
 	public function code() : int
 	{
 		return 200;
@@ -26,7 +29,12 @@ abstract class ViewAbstract implements ViewInterface
 
 	public function extraHeaders() : array
 	{
-		return [];
+		if ($this->lastModified !== null)
+		{
+			$this->extraHeaders[] = sprintf('Last-Modified: %s', gmdate('D, d M Y H:i:s \G\M\T', $this->lastModified));
+			$this->extraHeaders[] = 'Cache-Control: no-cache';
+		}
+		return $this->extraHeaders;
 	}
 
 	public function body() : void

@@ -62,9 +62,8 @@ CREATE TABLE `event` (
   `event_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `calendar_id` int(10) unsigned NOT NULL,
   `start` int(10) unsigned NOT NULL COMMENT 'UNIX timestamp / 60 (minutes)',
-  `duration` int(10) unsigned DEFAULT NULL COMMENT 'minutes',
+  `duration` int(10) unsigned NOT NULL DEFAULT 0 COMMENT 'minutes',
   `until` int(10) unsigned DEFAULT NULL COMMENT 'UNIX timestamp / 60 (minutes)',
-  `frequency` enum('dayly','weekly','monthly','yearly') DEFAULT NULL COMMENT 'RRule',
   `rrule` text DEFAULT NULL,
   `title` varchar(255) NOT NULL,
   `description` text DEFAULT NULL,
@@ -76,7 +75,7 @@ CREATE TABLE `event` (
   KEY `calendar_id` (`calendar_id`),
   KEY `title` (`title`),
   CONSTRAINT `event_ibfk_1` FOREIGN KEY (`calendar_id`) REFERENCES `calendar` (`calendar_id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=35 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=39 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -174,4 +173,4 @@ CREATE TABLE `ressourceACL` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-05-27 12:20:00
+-- Dump completed on 2026-05-29 11:35:37

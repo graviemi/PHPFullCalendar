@@ -60,14 +60,10 @@ class FreeBusy extends ViewAbstract
 
 		foreach ($this->events as $event)
 		{
+			if ($event['duration'] <= 0)
+				continue;
 			$startSec = $event['start'] * 60;
-			if ($event['duration'] !== null)
-			{
-				$endSec = $startSec + $event['duration'] * 60;
-				$lines[] = 'FREEBUSY:'.gmdate('Ymd\THis\Z', $startSec).'/'.gmdate('Ymd\THis\Z', $endSec);
-			}
-			else
-				$lines[] = 'FREEBUSY:'.gmdate('Ymd\THis\Z', $startSec).'/'.gmdate('Ymd\THis\Z', $startSec);
+			$lines[] = 'FREEBUSY:'.gmdate('Ymd\THis\Z', $startSec).'/'.gmdate('Ymd\THis\Z', $startSec + $event['duration'] * 60);
 		}
 
 		$lines[] = 'END:VFREEBUSY';

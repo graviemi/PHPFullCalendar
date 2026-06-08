@@ -212,7 +212,7 @@ PHPFullCalendar = (function ()
 	{
 		const tooltip = document.getElementById('pfc-tooltip');
 		tooltip.style.left = (e.clientX + 12) + 'px';
-		tooltip.style.top  = (e.clientY + 12) + 'px';
+		tooltip.style.top = (e.clientY + 12) + 'px';
 	}
 
 	function _toDateTimeLocal(str)
@@ -665,6 +665,32 @@ PHPFullCalendar = (function ()
 		_enable('doImportIcsBtn',false);
 	}
 
+	function _rruleBuild()
+	{
+		const rruleUI = document.getElementById('rruleCollapse');
+		const freq = rruleUI.querySelector('[name=rrule_freq]:checked')?.value ?? 'daily';
+		const interval = Math.max(1, parseInt(rruleUI.querySelector('[name=rrule_interval]').value) || 1);
+		const endMode = rruleUI.querySelector('[name=rrule_end]:checked')?.value ?? 'endless';
+		const freqMap = { daily: 'DAILY', weekly: 'WEEKLY', monthly: 'MONTHLY', yearly: 'YEARLY' };
+		const parts = [`FREQ=${freqMap[freq] ?? 'DAILY'}`];
+		if (interval > 1)
+			parts.push(`INTERVAL=${interval}`);
+		if (endMode === 'count') {
+			const count = parseInt(rruleUI.querySelector('[name=rrule_count]').value);
+			if (count >= 2) parts.push(`COUNT=${count}`);
+		} else if (endMode === 'until') {
+			const until = rruleUI.querySelector('[name=rrule_until]').value;
+			if (until) parts.push(`UNTIL=${until.replace(/-/g, '')}T000000Z`);
+		}
+		return parts.join(';');
+	}
+
+	function _rruleSync(e)
+	{
+		if (e.target.name !== 'rrule')
+			document.querySelector('[name=rrule]').value = _rruleBuild();
+	}
+
 	// constructeur
 	function construct(lang,sources)
 	{
@@ -684,16 +710,14 @@ PHPFullCalendar = (function ()
 				[4,_('level_acl')]
 			];
 			_globalPermissions = [
-				[1,  _('gr_cal_create')],
-				[2,  _('gr_cal_destroy')],
-				[4,  _('gr_res_add')],
-				[8,  _('gr_res_del')],
+				[1, _('gr_cal_create')],
+				[2, _('gr_cal_destroy')],
+				[4, _('gr_res_add')],
+				[8, _('gr_res_del')],
 				[16, _('gr_acl')]
 			];
 			_calendar = new FullCalendar.Calendar(document.getElementById('calendar'),{
 				'locale': lang,
-		//		'height': 'auto',
-//				'plugins': [timeGridPlugin],
 				'headerToolbar': {
 					'left': 'prev,next today',
 					'center': 'title',
@@ -716,6 +740,18 @@ PHPFullCalendar = (function ()
 			document.getElementById('loginBtn').addEventListener('click', self.connect);
 			document.getElementById('disconnectBtn').addEventListener('click', self.disconnect);
 
+			document.addEventListener('click', function(e) {
+				const btn = e.target.closest('[data-copy-link]');
+				if (!btn) return;
+				const link = document.getElementById(btn.dataset.copyLink);
+				if (!link) return;
+				navigator.clipboard.writeText(link.href).then(() => {
+					const icon = btn.querySelector('i');
+					icon.className = 'bi bi-clipboard2-check-fill';
+					setTimeout(() => { icon.className = 'bi bi-clipboard2-fill'; }, 1500);
+				});
+			});
+
 			// Calendars managment
 
 			document.getElementById('addCalendarBtn').addEventListener('click', function () {
@@ -736,6 +772,10 @@ PHPFullCalendar = (function ()
 				const link = document.getElementById('infoIcsLink');
 				link.href = icsUrl;
 				link.textContent = icsUrl;
+				const fcUrl = `${window.location.origin}/$/Event/list/${_calendar_id}`;
+				const fcLink = document.getElementById('infoFcLink');
+				fcLink.href = fcUrl;
+				fcLink.textContent = fcUrl;
 				_getModal('info').show();
 			});
 			document.getElementById('editCalendarBtn').addEventListener('click', async function () {
@@ -807,9 +847,11 @@ PHPFullCalendar = (function ()
 				_event_id = null;
 				const form = document.getElementById('eventForm');
 				form.reset();
+				bootstrap.Collapse.getOrCreateInstance(rruleCollapse).hide();
+				document.getElementById('rruleExpertSection').style.display = 'none';
 				form.querySelector('input[name=start]').value = _toDateTimeLocal(info.dateStr);
+				form.querySelector('input[name=end]').value = _toDateTimeLocal(info.dateStr);
 				document.getElementById('eventModalTitle').textContent = _('new_event');
-//				document.getElementById('eventStart').value = _toDateTimeLocal(info.dateStr);
 				document.getElementById('deleteEventBtn').disabled = true;
 				_getModal('event').show();
 			});
@@ -823,9 +865,47 @@ PHPFullCalendar = (function ()
 //				console.log(data);
 				const form = document.getElementById('eventForm');
 				form.reset();
+				document.getElementById('rruleExpertSection').style.display = 'none';
 				form.querySelectorAll('[name]').forEach((field) => {
-					field.value = (field.name === 'start' || field.name === 'end')?_utcToDateTimeLocal(data[field.name]):data[field.name];
+					if (data[field.name] === undefined) return;
+					field.value = (field.name === 'start' || field.name === 'end') ? _utcToDateTimeLocal(data[field.name]) : data[field.name];
 				});
+				if (data.rrule) {
+					const freqNumMap = {0: 'yearly', 1: 'monthly', 2: 'weekly', 3: 'daily'};
+					let freq = 'daily', interval = 1, until = '', count = 0;
+					if (_RRule) {
+						try {
+							const opts = _RRule.parseString(data.rrule);
+							freq = freqNumMap[opts.freq] ?? 'daily';
+							interval = opts.interval ?? 1;
+							if (opts.until) until = opts.until.toISOString().substring(0, 10);
+							if (opts.count) count = opts.count;
+						} catch (e) {}
+					} else {
+						const mFreq = data.rrule.match(/FREQ=(\w+)/);
+						const mInt = data.rrule.match(/INTERVAL=(\d+)/);
+						const mUntil = data.rrule.match(/UNTIL=(\d{8})/);
+						const mCount = data.rrule.match(/COUNT=(\d+)/);
+						if (mFreq) freq = mFreq[1].toLowerCase();
+						if (mInt) interval = parseInt(mInt[1]);
+						if (mUntil) { const s = mUntil[1]; until = `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`; }
+						if (mCount) count = parseInt(mCount[1]);
+					}
+					const freqRadio = form.querySelector(`[name=rrule_freq][value=${freq}]`);
+					if (freqRadio) freqRadio.checked = true;
+					_rruleShowFreqSection(freq);
+					form.querySelector('[name=rrule_interval]').value = interval;
+					if (count >= 2) {
+						form.querySelector('[name=rrule_end][value=count]').checked = true;
+						form.querySelector('[name=rrule_count]').value = count;
+					} else if (until) {
+						form.querySelector('[name=rrule_end][value=until]').checked = true;
+						form.querySelector('[name=rrule_until]').value = until;
+					}
+					bootstrap.Collapse.getOrCreateInstance(rruleCollapse).show();
+				}
+				else
+					bootstrap.Collapse.getOrCreateInstance(rruleCollapse).hide();
 				document.getElementById('eventModalTitle').textContent = _('edit_event');
 				document.getElementById('deleteEventBtn').disabled = (_calendarAuth < 3);
 				_getModal('event').show();
@@ -833,6 +913,8 @@ PHPFullCalendar = (function ()
 			document.getElementById('addEventBtn').addEventListener('click', function () {
 				_event_id = null;
 				document.getElementById('eventForm').reset();
+				bootstrap.Collapse.getOrCreateInstance(rruleCollapse).hide();
+				document.getElementById('rruleExpertSection').style.display = 'none';
 				_enable('deleteEventBtn',false);
 				_getModal('event').show();
 			});
@@ -880,11 +962,75 @@ PHPFullCalendar = (function ()
 				_getModal('event').hide();
 			});
 
+			// Recurrence form
+
+			const rruleCollapse = document.getElementById('rruleCollapse');
+			const rruleActive = document.getElementById('rruleActive');
+			rruleCollapse.addEventListener('show.bs.collapse', () => rruleActive.value = '1');
+			rruleCollapse.addEventListener('hide.bs.collapse', () => rruleActive.value = '0');
+			rruleCollapse.addEventListener('change', _rruleSync);
+			rruleCollapse.addEventListener('input', _rruleSync);
+
+			const _RRule = window.RRule
+				?? window.rrule?.RRule
+				?? window.FullCalendarRRule?.RRule;
+
+			const rrulePreviewBtn = document.getElementById('rrulePreviewBtn');
+			const rrulePreviewDiv = document.createElement('div');
+			rrulePreviewDiv.id = 'rrulePreview';
+			document.body.appendChild(rrulePreviewDiv);
+
+			rrulePreviewBtn.addEventListener('mouseenter', function () {
+				if (!_RRule) return;
+				const rruleStr = _rruleBuild();
+				if (!rruleStr) return;
+				const startVal = document.querySelector('[name=start]').value;
+				const dtstart = startVal ? new Date(startVal) : new Date();
+				let dates;
+				try {
+					const opts = _RRule.parseString(rruleStr);
+					opts.dtstart = dtstart;
+					dates = new _RRule(opts).all((d, i) => i < 11);
+				} catch (err) { return; }
+				if (!dates || !dates.length) return;
+				rrulePreviewDiv.textContent = dates
+					.map(d => d.toLocaleDateString(lang, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }))
+					.join('\n');
+				const r = rrulePreviewBtn.getBoundingClientRect();
+				rrulePreviewDiv.style.left = (r.right + 10) + 'px';
+				rrulePreviewDiv.style.top = r.top + 'px';
+				rrulePreviewDiv.style.display = 'block';
+			});
+			rrulePreviewBtn.addEventListener('mouseleave', () => rrulePreviewDiv.style.display = 'none');
+
+			const _rruleFreqSections = {
+				daily: document.getElementById('eventsDaily'),
+				weekly: document.getElementById('eventsWeekly'),
+				monthly: document.getElementById('eventsMonthly'),
+				yearly: document.getElementById('eventsYearly'),
+			};
+
+			function _rruleShowFreqSection(freq)
+			{
+				for (const [key, el] of Object.entries(_rruleFreqSections))
+					el.style.display = (key === freq) ? 'block' : 'none';
+			}
+
+			document.querySelectorAll('[name=rrule_freq]').forEach(radio => {
+				radio.addEventListener('change', () => { if (radio.checked) _rruleShowFreqSection(radio.value); });
+			});
+
+			const rruleExpertCheck = document.getElementById('rruleExpertCheck');
+			const rruleExpertSection = document.getElementById('rruleExpertSection');
+			rruleExpertCheck.addEventListener('change', () => {
+				rruleExpertSection.style.display = rruleExpertCheck.checked ? 'block' : 'none';
+			});
+
 			// ICS import
 
-			const icsDropZone    = document.getElementById('icsDropZone');
-			const icsFileInput   = document.getElementById('icsFileInput');
-			const icsFileName    = document.getElementById('icsFileName');
+			const icsDropZone = document.getElementById('icsDropZone');
+			const icsFileInput = document.getElementById('icsFileInput');
+			const icsFileName = document.getElementById('icsFileName');
 
 			icsDropZone.addEventListener('click', () => icsFileInput.click());
 			icsDropZone.addEventListener('dragover', e => { e.preventDefault(); icsDropZone.classList.add('drag-over'); });

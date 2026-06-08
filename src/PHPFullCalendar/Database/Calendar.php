@@ -105,8 +105,8 @@ class Calendar
 	{
 		$stmt = $this->pdo->prepare(
 			'SELECT * FROM event
-			WHERE calendar_id = :calendar_id AND ((start >= :start AND start < :end)
-				OR (start + duration >= :start AND start + duration < :end))'
+			WHERE calendar_id = :calendar_id AND start < :end
+				AND (start + duration >= :start OR (rrule IS NOT NULL AND (until = 0 OR until >= :start)))'
 		);
 		$stmt->execute([
 			':calendar_id' => $calendar_id,
@@ -116,81 +116,35 @@ class Calendar
 		return $stmt->fetchAll(\PDO::FETCH_ASSOC);
 	}
 
-	public function createEvent(
-		int $calendar_id,
-		int $start,
-		string $title,
-		int|null $duration = null,
-		int|null $until = null,
-		string|null $frequency = null,
-		string|null $rrule = null,
-		string|null $description = null,
-		string|null $location = null,
-		string|null $position = null,
-		string|null $url = null,
-		string|null $color = null
-	) : int
+	public function createEvent(int $calendar_id, array $data) : int
 	{
 		$stmt = $this->pdo->prepare(
 			'INSERT INTO event
-				(calendar_id, start, duration, until, frequency, rrule, title, description, location, position, url, color)
+				(calendar_id, start, duration, until, rrule, title, description, location, position, url, color)
 			VALUES
-				(:calendar_id, :start, :duration, :until, :frequency, :rrule, :title, :description, :location, :position, :url, :color)'
+				(:calendar_id, :start, :duration, :until, :rrule, :title, :description, :location, :position, :url, :color)'
 		);
-		$stmt->execute([
-			':calendar_id' => $calendar_id,
-			':start'       => $start,
-			':duration'    => $duration,
-			':until'       => $until,
-			':frequency'   => $frequency,
-			':rrule'       => $rrule,
-			':title'       => $title,
-			':description' => $description,
-			':location'    => $location,
-			':position'    => $position,
-			':url'         => $url,
-			':color'       => $color,
-		]);
+		$symbols = [':calendar_id' => $calendar_id];
+		foreach ($data as $key => $value)
+			$symbols[':'.$key] = $value;
+		$stmt->execute($symbols);
 		return (int) $this->pdo->lastInsertId();
 	}
 
-	public function updateEvent(
-		int $event_id,
-		int $start,
-		string $title,
-		int|null $duration = null,
-		int|null $until = null,
-		string|null $frequency = null,
-		string|null $rrule = null,
-		string|null $description = null,
-		string|null $location = null,
-		string|null $position = null,
-		string|null $url = null,
-		string|null $color = null
-	) : bool
+	public function updateEvent(int $event_id, array $data) : bool
 	{
 		$stmt = $this->pdo->prepare(
 			'UPDATE event
 			SET start = :start, duration = :duration, until = :until,
-				frequency = :frequency, rrule = :rrule, title = :title,
+				rrule = :rrule, title = :title,
 				description = :description, location = :location, position = :position,
 				url = :url, color = :color
 			WHERE event_id = :event_id'
 		);
-		return $stmt->execute([
-			':event_id'    => $event_id,
-			':start'       => $start,
-			':duration'    => $duration,
-			':until'       => $until,
-			':frequency'   => $frequency,
-			':rrule'       => $rrule,
-			':title'       => $title,
-			':description' => $description,
-			':location'    => $location,
-			':position'    => $position,
-			':url'         => $url,
-			':color'       => $color,
-		]);
+		$symbols = [':event_id' => $event_id];
+		foreach ($data as $key => $value)
+			$symbols[':'.$key] = $value;
+		return $stmt->execute($symbols);
 	}
 
 	public function deleteEvent(int $event_id) : bool
