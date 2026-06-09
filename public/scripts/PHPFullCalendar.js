@@ -224,10 +224,11 @@ PHPFullCalendar = (function ()
 		return str.substring(0, 16);
 	}
 
-	function _utcToDateTimeLocal(str)
+	function _utcToDateTimeLocal(str, offset = 0)
 	{
 		if (! str) return '';
 		const d = new Date(str);
+		d.setSeconds(d.getSeconds() + offset);
 		const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
 		return local.toISOString().substring(0, 16);
 	}
@@ -923,6 +924,18 @@ PHPFullCalendar = (function ()
 //				console.log(form.querySelector('input[name=start]').value);
 //				form.querySelector('input[name=end]').value = _toDateTimeLocal(form.querySelector('input[name=start]').value);
 				form.querySelector('input[name=end]').value = form.querySelector('input[name=start]').value;
+			});
+			document.getElementById('addOneHourBtn').addEventListener('click', function () {
+				const input = document.getElementById('eventForm').querySelector('input[name=end]');
+				if (! input.value)
+					return;
+				input.value = _utcToDateTimeLocal(input.value,3600);
+			});
+			document.getElementById('addThirtyMinBtn').addEventListener('click', function () {
+				const input = document.getElementById('eventForm').querySelector('input[name=end]');
+				if (! input.value)
+					return;
+				input.value = _utcToDateTimeLocal(input.value,1800);
 			});
 			document.getElementById('saveEventBtn').addEventListener('click', async function (event) {
 				const data = {};

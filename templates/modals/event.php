@@ -17,14 +17,18 @@
 						<label class="form-label"><?= _::uf('start_date') ?></label>
 						<div class="input-group">
 							<input type="datetime-local" class="form-control" name="start" required>
-							<button type="button" class="btn btn-sm btn-outline-secondary" id="copyStartToEndBtn" tabindex="-1">
+							<button type="button" class="btn btn-sm btn-outline-secondary" id="copyStartToEndBtn" tabindex="-1" title="<?= _::_('_date_copy_title') ?>">
 								<i class="bi bi-arrow-down-left-square"></i>
 							</button>
 						</div>
 					</div>
 					<div class="mb-3">
 						<label class="form-label"><?= _::uf('end_date') ?></label>
-						<input type="datetime-local" class="form-control" name="end">
+						<div class="input-group">
+							<input type="datetime-local" class="form-control" name="end">
+							<button type="button" class="btn btn-sm btn-outline-secondary" id="addOneHourBtn" tabindex="-1">+1h</button>
+							<button type="button" class="btn btn-sm btn-outline-secondary" id="addThirtyMinBtn" tabindex="-1">+30m</button>
+						</div>
 					</div>
 
 <!--					<div class="form-check mb-3">
