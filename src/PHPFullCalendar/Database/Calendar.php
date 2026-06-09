@@ -101,6 +101,21 @@ class Calendar
 		return $stmt->fetch(\PDO::FETCH_ASSOC);
 	}
 
+	public function getLastModified(int $calendar_id, int $start, int $end) : int
+	{
+		$stmt = $this->pdo->prepare(
+			'SELECT MAX(modified) as last_modified FROM event
+			WHERE calendar_id = :calendar_id AND start < :end
+				AND (start + duration >= :start OR (rrule IS NOT NULL AND (until = 0 OR until >= :start)))'
+		);
+		$stmt->execute([
+			':calendar_id' => $calendar_id,
+			':start' => $start,
+			':end' => $end
+		]);
+		return ($stmt->fetchAll(\PDO::FETCH_ASSOC))[0]['last_modified'] ?? 0;
+	}
+
 	public function getEvents(int $calendar_id, int $start, int $end) : array
 	{
 		$stmt = $this->pdo->prepare(

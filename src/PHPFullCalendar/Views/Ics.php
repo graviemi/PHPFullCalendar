@@ -9,10 +9,11 @@ class Ics extends ViewAbstract
 	protected string $calendarName;
 	protected array $events;
 
-	public function __construct(string $calendarName, array $events)
+	public function __construct(string $calendarName, array $events, int|null $lastModified = null)
 	{
 		$this->calendarName = $calendarName;
 		$this->events = $events;
+		$this->lastModified = $lastModified;
 		$this->extraHeaders[] = sprintf('Content-Disposition: attachment; filename="%s.ics"',preg_replace('/[^a-z0-9_-]/i', '_', $this->calendarName));
 	}
 

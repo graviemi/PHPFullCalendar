@@ -189,11 +189,14 @@ class Event extends ControllerAbstract
 
 		$db = new CalendarDB(_::getPDO());
 		$calendar = $db->getCalendar($calendar_id);
-		$events = $db->getEvents($calendar_id, $start, $end);
-		$endDt = new DateTimeImmutable('@'.($end * 60));
-		$lastModified = (int) $calendar['modified'];
+		$lastModified = max((int) $calendar['modified'], $db->getLastModified($calendar_id, $start, $end));
 		$ifModifiedSince = isset($_SERVER['HTTP_IF_MODIFIED_SINCE']) ? (int) strtotime($_SERVER['HTTP_IF_MODIFIED_SINCE']) : 0;
 
+		if ($ifModifiedSince > 0 && $lastModified <= $ifModifiedSince)
+			return new NotModified();
+
+		$events = $db->getEvents($calendar_id, $start, $end);
+		$endDt = new DateTimeImmutable('@'.($end * 60));
 		$result = [];
 		foreach ($events as $event) {
 			$startSec = $event['start'] * 60;
@@ -231,13 +234,9 @@ class Event extends ControllerAbstract
 				$extendedProps['position'] = $event['position'];
 			if ($extendedProps)
 				$entry['extendedProps'] = $extendedProps;
-			if ((int) $event['modified'] > $lastModified)
-				$lastModified = (int) $event['modified'];
 			$result[] = $entry;
 		}
 
-		if ($ifModifiedSince > 0 && $lastModified <= $ifModifiedSince)
-			return new NotModified();
 		return new Json($result, $lastModified ?: null);
 	}
 
@@ -258,13 +257,25 @@ class Event extends ControllerAbstract
 			return new NotFound();
 
 		$six_month = new DateInterval('P6M');
-		$start = floor((new DateTimeImmutable())->sub($six_month)->getTimestamp() / 60);
-		$end = floor((new DateTimeImmutable())->add($six_month)->getTimestamp() / 60);
+		try
+		{
+			$start = isset($_GET['start']) ? floor((new DateTimeImmutable($_GET['start']))->getTimestamp() / 60) : floor((new DateTimeImmutable())->sub($six_month)->getTimestamp() / 60);
+			$end   = isset($_GET['end'])   ? floor((new DateTimeImmutable($_GET['end']))->getTimestamp()   / 60) : floor((new DateTimeImmutable())->add($six_month)->getTimestamp() / 60);
+		}
+		catch (\Exception $e)
+		{
+			return new BadRequest(_::_('start_and_end_required'));
+		}
+
+		$lastModified = max((int) $calendar['modified'], $db->getLastModified($calendar_id, $start, $end));
+		$ifModifiedSince = isset($_SERVER['HTTP_IF_MODIFIED_SINCE']) ? (int) strtotime($_SERVER['HTTP_IF_MODIFIED_SINCE']) : 0;
+		if ($ifModifiedSince > 0 && $lastModified <= $ifModifiedSince)
+			return new NotModified();
 
 		$events = $db->getEvents($calendar_id, $start, $end);
 		if ($auth === ACL::CAL_FREE_BUSY)
-			return new FreeBusy($calendar['name'], $events);
-		return new Ics($calendar['name'], $events);
+			return new FreeBusy($calendar['name'], $events, $lastModified ?: null);
+		return new Ics($calendar['name'], $events, $lastModified ?: null);
 	}
 
 	protected function _put_ics()

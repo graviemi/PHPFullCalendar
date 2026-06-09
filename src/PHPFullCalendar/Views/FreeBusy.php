@@ -9,10 +9,11 @@ class FreeBusy extends ViewAbstract
 	protected string $calendarName;
 	protected array $events;
 
-	public function __construct(string $calendarName, array $events)
+	public function __construct(string $calendarName, array $events, int|null $lastModified = null)
 	{
 		$this->calendarName = $calendarName;
 		$this->events = $events;
+		$this->lastModified = $lastModified;
 	}
 
 	public function mimeType() : string
@@ -22,10 +23,16 @@ class FreeBusy extends ViewAbstract
 
 	public function extraHeaders() : array
 	{
-		return [
+		$headers = [
 			sprintf('Content-Disposition: attachment; filename="%s.ics"',
 				preg_replace('/[^a-z0-9_-]/i', '_', $this->calendarName))
 		];
+		if ($this->lastModified !== null)
+		{
+			$headers[] = sprintf('Last-Modified: %s', gmdate('D, d M Y H:i:s \G\M\T', $this->lastModified));
+			$headers[] = 'Cache-Control: must-revalidate';
+		}
+		return $headers;
 	}
 
 	protected function fold(string $line) : string
