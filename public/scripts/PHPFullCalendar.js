@@ -832,6 +832,14 @@ PHPFullCalendar = (function ()
 
 			// Events managment
 
+			const rruleCollapse = document.getElementById('rruleCollapse');
+			const rruleCollapseBtn = document.querySelector('[data-bs-target="#rruleCollapse"]');
+			const rruleActive = document.getElementById('rruleActive');
+			function _rruleHide() {
+				rruleCollapse.classList.remove('show');
+				rruleCollapseBtn.classList.add('collapsed');
+				rruleActive.value = '0';
+			}
 			_calendar.on('eventMouseEnter', function(info) {
 				const desc = info.event.extendedProps.description;
 				if (! desc) return;
@@ -848,7 +856,7 @@ PHPFullCalendar = (function ()
 				_event_id = null;
 				const form = document.getElementById('eventForm');
 				form.reset();
-				bootstrap.Collapse.getOrCreateInstance(rruleCollapse).hide();
+				_rruleHide();
 				document.getElementById('rruleExpertSection').style.display = 'none';
 				form.querySelector('input[name=start]').value = _toDateTimeLocal(info.dateStr);
 				form.querySelector('input[name=end]').value = _toDateTimeLocal(info.dateStr);
@@ -906,7 +914,7 @@ PHPFullCalendar = (function ()
 					bootstrap.Collapse.getOrCreateInstance(rruleCollapse).show();
 				}
 				else
-					bootstrap.Collapse.getOrCreateInstance(rruleCollapse).hide();
+					_rruleHide();
 				document.getElementById('eventModalTitle').textContent = _('edit_event');
 				document.getElementById('deleteEventBtn').disabled = (_calendarAuth < 3);
 				_getModal('event').show();
@@ -914,7 +922,7 @@ PHPFullCalendar = (function ()
 			document.getElementById('addEventBtn').addEventListener('click', function () {
 				_event_id = null;
 				document.getElementById('eventForm').reset();
-				bootstrap.Collapse.getOrCreateInstance(rruleCollapse).hide();
+				_rruleHide();
 				document.getElementById('rruleExpertSection').style.display = 'none';
 				_enable('deleteEventBtn',false);
 				_getModal('event').show();
@@ -977,8 +985,6 @@ PHPFullCalendar = (function ()
 
 			// Recurrence form
 
-			const rruleCollapse = document.getElementById('rruleCollapse');
-			const rruleActive = document.getElementById('rruleActive');
 			rruleCollapse.addEventListener('show.bs.collapse', () => rruleActive.value = '1');
 			rruleCollapse.addEventListener('hide.bs.collapse', () => rruleActive.value = '0');
 			rruleCollapse.addEventListener('change', _rruleSync);
