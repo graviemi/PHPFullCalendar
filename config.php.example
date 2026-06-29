@@ -99,6 +99,29 @@ return [
 		],
 	],
 
+	// Brute-force protection on authentication. Remove or comment out this whole
+	// block to disable it. Blocking is per client IP (see 'trusted_proxies' below
+	// when behind a reverse proxy, otherwise everyone shares the proxy IP).
+	'security' => [
+		// Backend class under PHPFullCalendar\Security\ (only Memcached for now)
+		'backend' => 'Memcached',
+		'parameters' => [
+			'host'       => '127.0.0.1',
+			'port'       => 11211,
+			'max_try'    => 3,         // failed attempts allowed before blocking
+			'quarantine' => 3600,      // block duration in seconds
+			'prefix'     => 'pfc_sec_',// memcached key prefix
+		],
+	],
+
+	// Reverse proxies whose X-Forwarded-For can be trusted to resolve the real
+	// client IP (_::clientIp()). List the IPs of YOUR proxies only. Leave empty
+	// when the app is exposed directly — REMOTE_ADDR is then used as-is.
+	// Note: matching is on exact IPs (no CIDR ranges).
+	'trusted_proxies' => [
+		// '127.0.0.1',
+	],
+
 	// MySQL / MariaDB connection
 	'database' => [
 		'driver' => 'mysql',

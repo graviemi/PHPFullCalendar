@@ -7,6 +7,7 @@ use PDO,
 	oTools\Sessions\Session,
 	oTools\Sessions\Identifiers\Cookie,
 	PHPFullCalendar\Authentications\AuthenticationInterface,
+	PHPFullCalendar\Security\SecurityInterface,
 	PHPFullCalendar\Controllers\ControllerInterface,
 	PHPFullCalendar\Views\Unauthorized;
 
@@ -60,7 +61,7 @@ class _
 //		error_log(vsprintf($message,$args).PHP_EOL,3,self::get('BACKUPPC_LOG_PATH','/var/log/BackupPC').'/access.log');
 	}
 
-	public static function exception_handler($exception)
+	public static function exception_handler(Exception $exception)
 	{
 		$message = sprintf('EXCEPTION : "%s"',$exception->getMessage());
 		$message .= sprintf('%sin file "%s" line %s',PHP_EOL,$exception->getFile(),$exception->getLine());
@@ -98,6 +99,24 @@ class _
 		return self::$pdo;
 	}
 
+	// Real client IP. X-Forwarded-For is only honoured when REMOTE_ADDR is a
+	// trusted proxy (config 'trusted_proxies'), otherwise it is spoofable.
+	public static function clientIp() : string
+	{
+		$remote = $_SERVER['REMOTE_ADDR'] ?? '';
+		$trusted = self::$conf['trusted_proxies'] ?? [];
+		if (! in_array($remote, $trusted, true))
+			return $remote;
+		$forwarded = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
+		if ($forwarded === '')
+			return $remote;
+		// "client, proxy1, proxy2" : first non-trusted from the right is the real client
+		foreach (array_reverse(array_map('trim', explode(',', $forwarded))) as $ip)
+			if (filter_var($ip, FILTER_VALIDATE_IP) && ! in_array($ip, $trusted, true))
+				return $ip;
+		return $remote;
+	}
+
 	public static function getAuthentication(string $source) : AuthenticationInterface
 	{
 		if (! isset(self::$conf['authentication'][$source]))
@@ -112,6 +131,17 @@ class _
 			self::$conf['information'][$source] ?? [],
 			self::$conf['groups'][$source] ?? [],
 		);
+	}
+
+	public static function getSecurity() : SecurityInterface|null
+	{
+		if (! isset(self::$conf['security']))
+			return null;
+		$backend = self::$conf['security']['backend'];
+		$class = sprintf('PHPFullCalendar\\Security\\%s',$backend);
+		if (! class_exists($class))
+			throw new Exception(self::NOT_FOUND,'unknown security backend "%s"',$backend);
+		return new $class(self::$conf['security']['parameters'] ?? []);
 	}
 
 	public static function getSession() : Session
@@ -177,6 +207,7 @@ class _
 		ini_set('display_errors',1);
 		error_reporting(E_ALL);
 		spl_autoload_register('PHPFullCalendar\_::load',true,true);
+		require self::$root.'/src/compat.php';
 		set_exception_handler('PHPFullCalendar\_::exception_handler');
 		set_error_handler('PHPFullCalendar\_::error_handler');
 		date_default_timezone_set(self::$conf['timezone'] ?? 'Europe/Paris');
@@ -227,7 +258,7 @@ class _
 				if (str_starts_with($authorization, 'Basic '))
 				{
 					$decoded = base64_decode(substr($authorization, 6));
-					[$user, $password] = array_pad(explode(':', $decoded, 2), 2, '');
+					[$user_id, $password] = array_pad(explode(':', $decoded, 2), 2, '');
 				}
 			}
 			if ($user_id !== null)
@@ -235,9 +266,16 @@ class _
 				[$source,$login] = array_pad(explode('.',$user_id,2),2,'');
 				if (isset(self::$conf['authentication'][$source]))
 				{
-					$data = self::getAuthentication($source)->verify($login,$password);
-					if (isset($data['user_id']))
-						self::$userData = $data;
+					$secu = self::getSecurity();
+					// blocked client : skip the LDAP check, request stays anonymous → denied by ACL
+					if (($secu === null) || $secu->check(self::clientIp()))
+					{
+						$data = self::getAuthentication($source)->verify($login,$password);
+						if (isset($data['user_id']))
+							self::$userData = $data;
+						elseif ($secu !== null)
+							$secu->store(self::clientIp());
+					}
 				}
 			}
 		}
@@ -248,9 +286,9 @@ class _
 		// routing to the right controler is based on class existence.
 		if (! class_exists($class = sprintf('\\PHPFullCalendar\\Controllers\\%s',$controler)))
 			throw new Exception(self::NOT_FOUND,'"%s" not found.',$controler);
-		self::debug('http class:%s, method:%s',$class,$method ?? 'null');
+//		self::debug('http class:%s, method:%s',$class,$method ?? 'null');
 		$view = (new $class($verb,$method ?? null,$parameters ?? null))->view();
-		self::debug('http view:%s',get_class($view));
+//		self::debug('http view:%s',get_class($view));
 		if (($code = $view->code()) !== 200)
 			header(sprintf('HTTP/1.1 %d %s',$code,$view->message()));
 		if (($mimetype = $view->mimeType()) !== 'text/html')

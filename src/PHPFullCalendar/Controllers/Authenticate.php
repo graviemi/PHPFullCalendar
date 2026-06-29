@@ -3,8 +3,6 @@
 namespace PHPFullCalendar\Controllers;
 
 use PHPFullCalendar\_,
-	PHPFullCalendar\Exception,
-	PHPFullCalendar\Database\ACL,
 	PHPFullCalendar\Views\Forbidden,
 	PHPFullCalendar\Views\Ok,
 	PHPFullCalendar\Views\Json;
@@ -28,12 +26,15 @@ class Authenticate extends ControllerAbstract
 	protected function _post_connect()
 	{
 		usleep(random_int(1100,11000));
+		if ((($secu = _::getSecurity()) !== null) && ! $secu->check(_::clientIp()))
+			return new Forbidden('your have been blocked (Too many failed attempt).');		
 		$auth = _::getAuthentication($_POST['source']);
-		_::debug('auth');
 		if (($data = $auth->verify($_POST['user_id'] ?? '',$_POST['password'] ?? '')) === null)
+		{
+			if ($secu !== null)
+				$count = $secu->Store(_::clientIp());
 			return new Forbidden($auth->getError());
-		_::debug('auth pas null');
-		_::debug(print_r($data,true));
+		}
 		foreach ($data as $key => $value)
 			_::getSession()[$key] = $value;
 		return new Ok();
