@@ -3,14 +3,15 @@
 namespace PHPFullCalendar\Database;
 
 use ArrayObject,
+	PDO,
 	oTools\Sessions\Session;
 
 class Calendar
 {
 
-	private $pdo;
+	private PDO $pdo;
 
-	public function __construct($pdo)
+	public function __construct(PDO $pdo)
 	{
 		$this->pdo = $pdo;
 	}
