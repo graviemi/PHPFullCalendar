@@ -100,6 +100,11 @@
 					</div>
 
 					<div class="mb-3">
+						<label class="form-label"><?= _::uf('event_alarms') ?></label>
+						<div id="eventAlarmsList"></div>
+					</div>
+
+					<div class="mb-3">
 						<label class="form-label"><?= _::uf('location') ?></label>
 						<input type="text" class="form-control" name="location" placeholder="<?= _::_('location_ph') ?>">
 					</div>

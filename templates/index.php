@@ -20,15 +20,13 @@ foreach (_::$conf['authentication'] as $source => $data)
 <?php foreach (_::$conf['styles'] as $url) printf(tabs.'<link href="%s" rel="stylesheet">'.PHP_EOL,$url); ?>
 		<link href="/public/styles/main.css" rel="stylesheet">
 <?php foreach (_::$conf['scripts'] as $url) printf(tabs.'<script src="%s"></script>'.PHP_EOL,$url); ?>
-		<script src="/public/scripts/PHPFullCalendar.js"></script>
-		<script type="application/javascript">
-		document.addEventListener('DOMContentLoaded', () => {
-			const pfc = new PHPFullCalendar('<?= _::$language ?>',[<?php
-				foreach (_::$conf['authentication'] as $source => $data)
-					printf('[\'%s\',\'%s (%s)\']',$source,$source,$data['method']);
-			?>]);
-		});
-		</script>
+		<script type="application/json" id="pfc-config"><?php
+			$pfc_sources = [];
+			foreach (_::$conf['authentication'] as $source => $data)
+				$pfc_sources[] = [$source, sprintf('%s (%s)', $source, $data['method'])];
+			echo json_encode(['lang' => _::$language, 'sources' => $pfc_sources]);
+		?></script>
+		<script type="module" src="/public/scripts/PHPFullCalendar.js"></script>
 	</head>
 	<body>
 		<nav class="navbar bg-body-tertiary px-3">
@@ -51,12 +49,18 @@ foreach (_::$conf['authentication'] as $source => $data)
 				<button class="btn btn-sm btn-outline-primary" id="manageCalendarAclBtn" disabled>
 					<i class="bi bi-person-fill-check"></i> <?= _::uf('calendar') ?>
 				</button>
+				<button class="btn btn-sm btn-outline-primary" id="calendarAlarmsBtn" disabled>
+					<i class="bi bi-bell-fill"></i> <?= _::uf('calendar') ?>
+				</button>
 				<div class="vr"></div>
 				<button class="btn btn-sm btn-outline-primary" id="addCalendarBtn" disabled>
 					<i class="bi bi-plus-circle-fill"></i> <?= _::uf('calendar') ?>
 				</button>
 				<button class="btn btn-sm btn-outline-primary" id="manageGlobalAclBtn" disabled>
 					<i class="bi bi-gear-fill"></i> <?= _::uf('global') ?>
+				</button>
+				<button class="btn btn-sm btn-outline-primary" id="manageAlarmsBtn" data-bs-toggle="modal" data-bs-target="#alarmsModal" disabled>
+					<i class="bi bi-bell"></i> <?= _::uf('manage_alarms') ?>
 				</button>
 			</div>
 			<div class="d-flex align-items-center gap-3">

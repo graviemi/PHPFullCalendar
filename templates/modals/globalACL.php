@@ -49,6 +49,9 @@
 									</label><label>
 										<i class="bi bi-person" title="<?= _::_('gr_acl') ?>"></i>
 										<input type="checkbox" value="16">
+									</label><label>
+										<i class="bi bi-bell" title="<?= _::_('gr_alarm') ?>"></i>
+										<input type="checkbox" value="32">
 									</label>
 								</div>
 							</td>
@@ -103,6 +106,9 @@
 									</label><label>
 										<i class="bi bi-person" title="<?= _::_('gr_acl') ?>"></i>
 										<input type="checkbox" value="16">
+									</label><label>
+										<i class="bi bi-bell" title="<?= _::_('gr_alarm') ?>"></i>
+										<input type="checkbox" value="32">
 									</label>
 								</div>
 							</td>

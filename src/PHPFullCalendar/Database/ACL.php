@@ -14,6 +14,7 @@ class ACL
 	const GR_RES_ADD = 4; // can add a new resource
 	const GR_RES_DEL = 8; // can delete a resource
 	const GR_ACL = 16; // can manage access control list
+	const GR_ALARM = 32; // can manage alarms and recipients
 
 	// Calendar authorization levels
 	const CAL_FREE_BUSY = 1; // can read calendar free/busy informations

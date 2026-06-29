@@ -45,7 +45,8 @@ class Authorization extends ControllerAbstract
 		$identifier = trim($_POST['identifier'] ?? '');
 		$type = $_POST['type'] ?? '';
 		$authorization = (int)($_POST['authorization'] ?? 0);
-		if (($identifier === $userData['user_id']) && ($type === 'user'))
+		_::debug('_post_globalacl : %d',$authorization & ACL::GR_ACL);
+		if (($identifier === $userData['user_id']) && ($type === 'user') && (($authorization & ACL::GR_ACL) === 0))
 			return new BadRequest(_::_('should_not_modify_own_acl'));
 		if (! in_array($source,_::$sources))
 			return new BadRequest(_::_('unknown_source'));
@@ -53,7 +54,7 @@ class Authorization extends ControllerAbstract
 			return new BadRequest(_::_('identifier_must_not_be_empty'));
 		if (! in_array($type, ['user', 'group', 'special']))
 			return new BadRequest(_::_('unknown_type'));
-		if ($authorization < 0 || $authorization > 31)
+		if ($authorization < 0 || $authorization > 63)
 			return new BadRequest(_::_('wrong_authorization'));
 
 		$acl->setGlobalAuthorization($source, $identifier, $type, $authorization);
