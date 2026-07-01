@@ -5,7 +5,7 @@ namespace PHPFullCalendar\Database;
 use ArrayObject,
 	oTools\Sessions\Session;
 
-class ACL
+class ACL extends DatabaseAbstract
 {
 
 	// Global authorizations codes can combine
@@ -28,13 +28,6 @@ class ACL
 	const RES_REV = 3; // can accept / reject booking requests
 	const RES_MANAGE = 4; // can change / modify / delete booking
 	const RES_EDIT = 5; // can modify resource attributes
-
-	private $pdo;
-
-	public function __construct($pdo)
-	{
-		$this->pdo = $pdo;
-	}
 
 	public function getGlobalAuthorization(ArrayObject|Session $data): int
 	{

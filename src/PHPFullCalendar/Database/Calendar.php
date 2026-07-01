@@ -3,30 +3,17 @@
 namespace PHPFullCalendar\Database;
 
 use ArrayObject,
-	PDO,
 	oTools\Sessions\Session;
 
-class Calendar
+class Calendar extends DatabaseAbstract
 {
-
-	private PDO $pdo;
-
-	public function __construct(PDO $pdo)
-	{
-		$this->pdo = $pdo;
-	}
-
 	// -------------------------------------------------------------------------
 	// Calendar CRUD
 	// -------------------------------------------------------------------------
 
 	public function getCalendar(int $calendar_id) : array|false
 	{
-		$stmt = $this->pdo->prepare(
-			'SELECT * FROM calendar WHERE calendar_id = :calendar_id'
-		);
-		$stmt->execute([':calendar_id' => $calendar_id]);
-		return $stmt->fetch(\PDO::FETCH_ASSOC);
+		return $this->_read('calendar', 'calendar_id', $calendar_id);
 	}
 
 	public function getManagedCalendars(ArrayObject|Session $data, int $level = 3) : array
@@ -58,35 +45,17 @@ class Calendar
 
 	public function createCalendar(string $name, string|null $description = null) : int
 	{
-		$stmt = $this->pdo->prepare(
-			'INSERT INTO calendar (name, description) VALUES (:name, :description)'
-		);
-		$stmt->execute([
-			':name' => $name,
-			':description' => $description
-		]);
-		return (int) $this->pdo->lastInsertId();
+		return $this->_create('calendar', ['name' => $name, 'description' => $description]);
 	}
 
 	public function updateCalendar(int $calendar_id, string $name, string|null $description = null) : bool
 	{
-		$stmt = $this->pdo->prepare(
-			'UPDATE calendar SET name = :name, description = :description
-			WHERE calendar_id = :calendar_id'
-		);
-		return $stmt->execute([
-			':calendar_id' => $calendar_id,
-			':name' => $name,
-			':description' => $description
-		]);
+		return $this->_update('calendar', 'calendar_id', $calendar_id, ['name' => $name, 'description' => $description]);
 	}
 
 	public function deleteCalendar(int $calendar_id) : bool
 	{
-		$stmt = $this->pdo->prepare(
-			'DELETE FROM calendar WHERE calendar_id = :calendar_id'
-		);
-		return $stmt->execute([':calendar_id' => $calendar_id]);
+		return $this->_delete('calendar', 'calendar_id', $calendar_id);
 	}
 
 	// -------------------------------------------------------------------------
@@ -95,11 +64,7 @@ class Calendar
 
 	public function getEvent(int $event_id) : array|false
 	{
-		$stmt = $this->pdo->prepare(
-			'SELECT * FROM event WHERE event_id = :event_id'
-		);
-		$stmt->execute([':event_id' => $event_id]);
-		return $stmt->fetch(\PDO::FETCH_ASSOC);
+		return $this->_read('event', 'event_id', $event_id);
 	}
 
 	public function getLastModified(int $calendar_id, int $start, int $end) : int
@@ -134,40 +99,16 @@ class Calendar
 
 	public function createEvent(int $calendar_id, array $data) : int
 	{
-		$stmt = $this->pdo->prepare(
-			'INSERT INTO event
-				(calendar_id, start, duration, until, rrule, title, description, location, position, url, color)
-			VALUES
-				(:calendar_id, :start, :duration, :until, :rrule, :title, :description, :location, :position, :url, :color)'
-		);
-		$symbols = [':calendar_id' => $calendar_id];
-		foreach ($data as $key => $value)
-			$symbols[':'.$key] = $value;
-		$stmt->execute($symbols);
-		return (int) $this->pdo->lastInsertId();
+		return $this->_create('event', array_merge(['calendar_id' => $calendar_id], $data));
 	}
 
 	public function updateEvent(int $event_id, array $data) : bool
 	{
-		$stmt = $this->pdo->prepare(
-			'UPDATE event
-			SET start = :start, duration = :duration, until = :until,
-				rrule = :rrule, title = :title,
-				description = :description, location = :location, position = :position,
-				url = :url, color = :color
-			WHERE event_id = :event_id'
-		);
-		$symbols = [':event_id' => $event_id];
-		foreach ($data as $key => $value)
-			$symbols[':'.$key] = $value;
-		return $stmt->execute($symbols);
+		return $this->_update('event', 'event_id', $event_id, $data);
 	}
 
 	public function deleteEvent(int $event_id) : bool
 	{
-		$stmt = $this->pdo->prepare(
-			'DELETE FROM event WHERE event_id = :event_id'
-		);
-		return $stmt->execute([':event_id' => $event_id]);
+		return $this->_delete('event', 'event_id', $event_id);
 	}
 }
