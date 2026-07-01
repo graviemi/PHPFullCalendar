@@ -157,8 +157,7 @@ import { t as _ } from './core/i18n.js';
 
 	function _emailRecipientLabel(recipient)
 	{
-		const name = [recipient.firstname, recipient.name].filter(Boolean).join(' ');
-		return name === '' ? recipient.address : `${name} <${recipient.address}>`;
+		return recipient.name ? `${recipient.name} <${recipient.address}>` : recipient.address;
 	}
 
 	function _emailRecipientChosenIds()

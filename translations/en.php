@@ -129,6 +129,7 @@ return [
 	'min_3_chars' => '3 characters minimum',
 	'minutes' => 'minutes',
 	'month_s' => 'month(s)',
+	'name' => 'name',
 	'new_alarm' => 'new alarm',
 	'new_calendar' => 'new calendar',
 	'new_event' => 'new event',

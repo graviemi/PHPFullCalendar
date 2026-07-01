@@ -250,12 +250,8 @@
 										<input type="email" class="form-control" name="address" required>
 									</div>
 									<div class="mb-3">
-										<label class="form-label"><?= _::uf('acl_identifier') ?></label>
+										<label class="form-label"><?= _::uf('name') ?></label>
 										<input type="text" class="form-control" name="name">
-									</div>
-									<div class="mb-3">
-										<label class="form-label"><?= _::uf('login') ?></label>
-										<input type="text" class="form-control" name="firstname">
 									</div>
 									<div class="d-flex gap-2">
 										<button type="button" class="btn btn-sm btn-secondary me-auto" data-ent-back="recipient"><i class="bi bi-arrow-left"></i> <?= _::uf('back') ?></button>
