@@ -35,7 +35,7 @@ return [
 	'authenticated' => 'authenticated',
 	'back' => 'back',
 	'before' => 'before',
-	'calendar_alarms' => 'default alarms',
+	'calendar_alarms' => 'default alarms (defined on calendar)',
 	'calendar_description' => 'description',
 	'calendar_info' => 'information',
 	'calendar_name_required' => 'Calendar name is required (1 to 255 characters)',

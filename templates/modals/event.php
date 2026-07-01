@@ -31,6 +31,42 @@
 						</div>
 					</div>
 
+					<div class="mb-3">
+						<label class="form-label"><?= _::uf('color') ?></label>
+						<input type="color" class="form-control form-control-color" name="color">
+					</div>
+
+					<div class="mb-3">
+						<label class="form-label"><?= _::uf('description') ?></label>
+						<textarea class="form-control" name="description"></textarea>
+					</div>
+
+					<div class="accordion accordion-flush mb-3 border rounded" id="eventExtentAccordion">
+						<div class="accordion-item">
+							<h2 class="accordion-header">
+								<button class="accordion-button collapsed py-2" type="button" data-bs-toggle="collapse" data-bs-target="#eventExtentCollapse">
+									<i class="bi bi-list me-2"></i><?= _::uf('event_extent') ?>
+								</button>
+							</h2>
+							<div id="eventExtentCollapse" class="accordion-collapse collapse" data-bs-parent="#eventExtentAccordion">
+								<div class="accordion-body py-2">
+									<div class="mb-3">
+										<label class="form-label"><?= _::uf('location') ?></label>
+										<input type="text" class="form-control" name="location" placeholder="<?= _::_('location_ph') ?>">
+									</div>
+									<div class="mb-3">
+										<label class="form-label"><?= _::uf('position') ?></label>
+										<input type="text" class="form-control" name="position" placeholder="<?= _::_('position_ph') ?>">
+									</div>
+									<div class="mb-3">
+										<label class="form-label">URL</label>
+										<input type="url" class="form-control" name="url">
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
 <!--					<div class="form-check mb-3">
 						<input class="form-check-input" type="checkbox" name="AllDay">
 						<label class="form-check-label">Toute la journée</label>
@@ -99,42 +135,32 @@
 						</div>
 					</div>
 
-					<div class="mb-3">
-						<label class="form-label"><?= _::uf('event_alarms') ?></label>
-						<div id="eventAlarmsWidget">
-							<div class="d-flex gap-2 mb-2">
-								<select class="form-select form-select-sm" id="eventAlarmPicker"></select>
-								<button type="button" class="btn btn-sm btn-outline-primary" id="eventAlarmAdd"><i class="bi bi-plus"></i></button>
+					<div class="accordion accordion-flush mb-3 border rounded" id="eventAlarmsAccordion">
+						<div class="accordion-item">
+							<h2 class="accordion-header">
+								<button class="accordion-button collapsed py-2" type="button" data-bs-toggle="collapse" data-bs-target="#eventAlarmsCollapse">
+									<i class="bi bi-bell me-2"></i><?= _::uf('event_alarms') ?>
+								</button>
+							</h2>
+							<div id="eventAlarmsCollapse" class="accordion-collapse collapse" data-bs-parent="#eventAlarmsAccordion">
+								<div class="accordion-body py-2">
+									<div id="eventAlarmsWidget">
+										<div class="d-flex gap-2 mb-2">
+											<select class="form-select form-select-sm" id="eventAlarmPicker"></select>
+											<button type="button" class="btn btn-sm btn-outline-primary" id="eventAlarmAdd"><i class="bi bi-plus"></i></button>
+										</div>
+										<ul class="list-group" id="eventAlarmList"></ul>
+									</div>
+									<div id="eventAlarmsHint" class="text-muted small" style="display:none"><?= _::_('alarm_save_event_first') ?></div>
+									<div class="mt-3" id="eventCalendarAlarms" style="display:none">
+										<label class="form-label text-body-secondary"><?= _::uf('calendar_alarms') ?></label>
+										<ul class="list-group" id="eventCalendarAlarmsList"></ul>
+									</div>
+								</div>
 							</div>
-							<ul class="list-group" id="eventAlarmList"></ul>
 						</div>
-						<div id="eventAlarmsHint" class="text-muted small" style="display:none"><?= _::_('alarm_save_event_first') ?></div>
 					</div>
 
-					<div class="mb-3">
-						<label class="form-label"><?= _::uf('location') ?></label>
-						<input type="text" class="form-control" name="location" placeholder="<?= _::_('location_ph') ?>">
-					</div>
-
-					<div class="mb-3">
-						<label class="form-label"><?= _::uf('position') ?></label>
-						<input type="text" class="form-control" name="position" placeholder="<?= _::_('position_ph') ?>">
-					</div>
-
-					<div class="mb-3">
-						<label class="form-label">URL</label>
-						<input type="url" class="form-control" name="url">
-					</div>
-
-					<div class="mb-3">
-						<label class="form-label"><?= _::uf('color') ?></label>
-						<input type="color" class="form-control form-control-color" name="color">
-					</div>
-
-					<div class="mb-3">
-						<label class="form-label"><?= _::uf('description') ?></label>
-						<textarea class="form-control" name="description"></textarea>
-					</div>
 				</div>
 				<div class="modal-footer">
 					<button type="button" class="btn btn-sm btn-danger me-auto" id="deleteEventBtn" disabled><?= _::uf('delete') ?></button>

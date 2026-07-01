@@ -5,7 +5,7 @@
 import { t as _, setTranslations as _setTranslations } from './core/i18n.js';
 import * as dom from './core/dom.js';
 import { request as _request, checkConnection as _checkConnection, loadingShow as _loadingShow, loadingHide as _loadingHide, promptLogin as _promptLogin, resetAskForLogin as _resetAskForLogin } from './core/http.js';
-import { initAlarms as _initAlarms, alarmWidgetLoad as _alarmWidgetLoad, hideAlarmWidget as _hideAlarmWidget } from './alarms.js';
+import { initAlarms as _initAlarms, alarmWidgetLoad as _alarmWidgetLoad, hideAlarmWidget as _hideAlarmWidget, eventCalendarAlarmsLoad as _eventCalendarAlarmsLoad } from './alarms.js';
 import * as GlobalACL from './GlobalACL.js';
 import * as CalendarACL from './CalendarACL.js';
 
@@ -349,6 +349,7 @@ function construct(lang,sources)
 				document.getElementById('eventModalTitle').textContent = _('new_event');
 				document.getElementById('deleteEventBtn').disabled = true;
 				_hideAlarmWidget('event');
+				_eventCalendarAlarmsLoad(_calendar_id);
 				dom.getModal('event').show();
 			});
 			_calendar.on('eventClick', async function(info) {
@@ -405,6 +406,7 @@ function construct(lang,sources)
 				document.getElementById('eventModalTitle').textContent = _('edit_event');
 				document.getElementById('deleteEventBtn').disabled = (_calendarAuth < 3);
 				await _alarmWidgetLoad('event', _event_id, _calendarAuth >= 3);
+				_eventCalendarAlarmsLoad(_calendar_id);
 				dom.getModal('event').show();
 			});
 			document.getElementById('addEventBtn').addEventListener('click', function () {
@@ -414,6 +416,7 @@ function construct(lang,sources)
 				document.getElementById('rruleExpertSection').style.display = 'none';
 				dom.enable('deleteEventBtn',false);
 				_hideAlarmWidget('event');
+				_eventCalendarAlarmsLoad(_calendar_id);
 				dom.getModal('event').show();
 			});
 			document.getElementById('copyStartToEndBtn').addEventListener('click', function () {

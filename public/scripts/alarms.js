@@ -496,6 +496,23 @@ import { t as _ } from './core/i18n.js';
 			document.getElementById(cfg.hint).style.display = '';
 	}
 
+	// Read-only list of the calendar's default alarms shown in the event modal (info only).
+	async function _eventCalendarAlarmsLoad(calendarId)
+	{
+		const section = document.getElementById('eventCalendarAlarms');
+		const list = document.getElementById('eventCalendarAlarmsList');
+		list.innerHTML = '';
+		const alarms = await _alarmFetchJson(`/Alarm/forCalendar/${calendarId}`);
+		if (alarms.length === 0)
+		{
+			section.style.display = 'none';
+			return;
+		}
+		for (const alarm of alarms)
+			list.appendChild(_el({ tag: 'li', attrs: { class: 'list-group-item py-1 text-body-secondary' }, content: alarm.label ?? '' }));
+		section.style.display = '';
+	}
+
 	// Wire up the alarms modal (definitions list/form + the 5 component managers).
 	export function initAlarms()
 	{
@@ -525,4 +542,4 @@ import { t as _ } from './core/i18n.js';
 			document.getElementById(_ALARM_WIDGETS[scope].add).addEventListener('click', function () { _alarmWidgetPick(scope); });
 	}
 
-	export { _alarmWidgetLoad as alarmWidgetLoad, _hideAlarmWidget as hideAlarmWidget };
+	export { _alarmWidgetLoad as alarmWidgetLoad, _hideAlarmWidget as hideAlarmWidget, _eventCalendarAlarmsLoad as eventCalendarAlarmsLoad };
