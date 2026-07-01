@@ -26,7 +26,6 @@ class Recipient extends ControllerAbstract
 		return [
 			'address' => trim($_POST['address'] ?? ''),
 			'name' => ($_POST['name'] ?? '') === '' ? null : $_POST['name'],
-			'firstname' => ($_POST['firstname'] ?? '') === '' ? null : $_POST['firstname'],
 		];
 	}
 
