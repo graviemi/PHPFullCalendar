@@ -8,3 +8,6 @@
 /php-rrule
 /dependencies
 /PHPFullCalendar.code-workspace
+/src/Twig
+/src/RRule
+/src/oTools
