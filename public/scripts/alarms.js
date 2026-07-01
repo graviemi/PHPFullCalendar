@@ -396,45 +396,105 @@ import { t as _ } from './core/i18n.js';
 		_alarmsLoad();
 	}
 
-	// Render attachment toggles of every alarm definition for a calendar or an event.
-	// kind = 'Calendar' | 'Event' → /Alarm/for<kind>, /Alarm/attach<kind>, /Alarm/detach<kind>.
-	async function _alarmAttachments(container, kind, ownerId, canEdit)
+	// Attachment widget (same UI as the email recipients picker) for calendar/event
+	// default alarms. Add/remove persist immediately via /Alarm/{attach,detach}<kind>.
+	const _ALARM_WIDGETS = {
+		calendar: { kind: 'Calendar', widget: 'calendarAlarmsWidget', picker: 'calendarAlarmPicker', add: 'calendarAlarmAdd', list: 'calendarAlarmList' },
+		event:    { kind: 'Event', widget: 'eventAlarmsWidget', hint: 'eventAlarmsHint', picker: 'eventAlarmPicker', add: 'eventAlarmAdd', list: 'eventAlarmList' }
+	};
+	// per-scope state : { ownerId, canEdit, all: [...alarms] }
+	const _alarmWidgetState = {};
+
+	function _alarmWidgetChosenIds(scope)
 	{
-		const [all, attached] = await Promise.all([
-			_alarmFetchJson('/Alarm/list'),
-			_alarmFetchJson(`/Alarm/for${kind}/${ownerId}`)
-		]);
-		const attachedIds = new Set(attached.map(a => String(a.alarm_id)));
-		container.innerHTML = '';
-		if (all.length === 0)
-		{
-			container.innerHTML = `<div class="text-muted small">${_('no_alarm')}</div>`;
-			return;
-		}
-		for (const alarm of all)
-		{
-			const id = `${kind.toLowerCase()}_alarm_${alarm.alarm_id}`;
-			const checkbox = _el({
-				tag: 'input',
-				attrs: { type: 'checkbox', class: 'form-check-input', id: id, checked: attachedIds.has(String(alarm.alarm_id)), disabled: ! canEdit }
-			});
-			checkbox.addEventListener('change', async function () {
-				const verb = checkbox.checked ? 'attach' : 'detach';
-				const response = await _request(`/Alarm/${verb}${kind}/${ownerId}/${alarm.alarm_id}`, { method: 'POST' });
-				if (response === null)
-					checkbox.checked = ! checkbox.checked;
-			});
-			container.appendChild(_el({
-				tag: 'div',
-				attrs: { class: 'form-check' },
-				content: [ checkbox, _el({ tag: 'label', attrs: { class: 'form-check-label', for: id }, content: alarm.label ?? '' }) ]
+		return Array.from(document.querySelectorAll(`#${_ALARM_WIDGETS[scope].list} li[data-alarm-id]`)).map(li => li.dataset.alarmId);
+	}
+
+	function _alarmWidgetRefreshPicker(scope)
+	{
+		const cfg = _ALARM_WIDGETS[scope];
+		const picker = document.getElementById(cfg.picker);
+		const chosen = new Set(_alarmWidgetChosenIds(scope));
+		picker.innerHTML = '';
+		picker.appendChild(_el({ tag: 'option', attrs: { value: '' }, content: _('choose') }));
+		for (const alarm of _alarmWidgetState[scope].all)
+			if (! chosen.has(String(alarm.alarm_id)))
+				picker.appendChild(_el({ tag: 'option', attrs: { value: alarm.alarm_id }, content: alarm.label ?? '' }));
+	}
+
+	function _alarmWidgetAddItem(scope, alarm)
+	{
+		const cfg = _ALARM_WIDGETS[scope];
+		const item = _el({
+			tag: 'li',
+			attrs: { class: 'list-group-item d-flex justify-content-between align-items-center py-1', 'data-alarm-id': alarm.alarm_id },
+			content: [{ tag: 'span', content: alarm.label ?? '' }]
+		});
+		if (_alarmWidgetState[scope].canEdit)
+			item.appendChild(_el({
+				tag: 'button',
+				attrs: { type: 'button', class: 'btn btn-outline-danger py-0' },
+				content: { tag: 'i', attrs: { class: 'bi bi-trash-fill' } },
+				events: { click: async function () {
+					const state = _alarmWidgetState[scope];
+					const response = await _request(`/Alarm/detach${cfg.kind}/${state.ownerId}/${alarm.alarm_id}`, { method: 'POST' });
+					if (response !== null)
+					{
+						item.remove();
+						_alarmWidgetRefreshPicker(scope);
+					}
+				} }
 			}));
+		document.getElementById(cfg.list).appendChild(item);
+	}
+
+	async function _alarmWidgetPick(scope)
+	{
+		const cfg = _ALARM_WIDGETS[scope];
+		const state = _alarmWidgetState[scope];
+		const picker = document.getElementById(cfg.picker);
+		if (picker.value === '' || state === undefined)
+			return;
+		const alarm = state.all.find(a => String(a.alarm_id) === picker.value);
+		if (alarm === undefined)
+			return;
+		const response = await _request(`/Alarm/attach${cfg.kind}/${state.ownerId}/${alarm.alarm_id}`, { method: 'POST' });
+		if (response !== null)
+		{
+			_alarmWidgetAddItem(scope, alarm);
+			_alarmWidgetRefreshPicker(scope);
 		}
 	}
 
-	function _eventAlarmsHint()
+	// Show the widget for an owner and load its attached alarms. canEdit toggles the picker/remove.
+	async function _alarmWidgetLoad(scope, ownerId, canEdit)
 	{
-		document.getElementById('eventAlarmsList').innerHTML = `<div class="text-muted small">${_('alarm_save_event_first')}</div>`;
+		const cfg = _ALARM_WIDGETS[scope];
+		document.getElementById(cfg.widget).style.display = '';
+		if (cfg.hint)
+			document.getElementById(cfg.hint).style.display = 'none';
+		const [all, attached] = await Promise.all([
+			_alarmFetchJson('/Alarm/list'),
+			_alarmFetchJson(`/Alarm/for${cfg.kind}/${ownerId}`)
+		]);
+		_alarmWidgetState[scope] = { ownerId, canEdit, all };
+		document.getElementById(cfg.list).innerHTML = '';
+		const attachedIds = new Set(attached.map(a => String(a.alarm_id)));
+		for (const alarm of all)
+			if (attachedIds.has(String(alarm.alarm_id)))
+				_alarmWidgetAddItem(scope, alarm);
+		document.getElementById(cfg.picker).style.display = canEdit ? '' : 'none';
+		document.getElementById(cfg.add).style.display = canEdit ? '' : 'none';
+		_alarmWidgetRefreshPicker(scope);
+	}
+
+	// Hide the widget (e.g. new calendar/event without id) ; show its hint if any.
+	function _hideAlarmWidget(scope)
+	{
+		const cfg = _ALARM_WIDGETS[scope];
+		document.getElementById(cfg.widget).style.display = 'none';
+		if (cfg.hint)
+			document.getElementById(cfg.hint).style.display = '';
 	}
 
 	// Wire up the alarms modal (definitions list/form + the 5 component managers).
@@ -462,6 +522,8 @@ import { t as _ } from './core/i18n.js';
 			document.querySelector(`[data-ent-back="${key}"]`).addEventListener('click', function () { _entShowList(key); });
 			_entForm(key).addEventListener('submit', function (event) { event.preventDefault(); _entSave(key); });
 		}
+		for (const scope in _ALARM_WIDGETS)
+			document.getElementById(_ALARM_WIDGETS[scope].add).addEventListener('click', function () { _alarmWidgetPick(scope); });
 	}
 
-	export { _alarmAttachments as alarmAttachments, _eventAlarmsHint as eventAlarmsHint };
+	export { _alarmWidgetLoad as alarmWidgetLoad, _hideAlarmWidget as hideAlarmWidget };

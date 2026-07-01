@@ -5,7 +5,9 @@
 import { t as _, setTranslations as _setTranslations } from './core/i18n.js';
 import * as dom from './core/dom.js';
 import { request as _request, checkConnection as _checkConnection, loadingShow as _loadingShow, loadingHide as _loadingHide, promptLogin as _promptLogin, resetAskForLogin as _resetAskForLogin } from './core/http.js';
-import { initAlarms as _initAlarms, alarmAttachments as _alarmAttachments, eventAlarmsHint as _eventAlarmsHint } from './alarms.js';
+import { initAlarms as _initAlarms, alarmWidgetLoad as _alarmWidgetLoad, hideAlarmWidget as _hideAlarmWidget } from './alarms.js';
+import * as GlobalACL from './GlobalACL.js';
+import * as CalendarACL from './CalendarACL.js';
 
 let _calendar; // FullCalendar.js
 let _calendar_id = null; // selected calendar unique database id
@@ -14,710 +16,308 @@ let _calendarAuth = 0; // connected user selected calendar authorizations
 let _event_id = null; // clicked calendar event unique database id
 let _user_infos;
 let _sources = null;
-let _levels;
 let _globalPermissions;
 let _icsFile = null;
 
-const _globalACLIcons = {
-	val1: ['calendar-plus','gr_cal_create'],
-	val2: ['calendar-x','gr_cal_destroy'],
-	val4: ['box-fill','gr_res_add'],
-	val8: ['box','gr_res_del'],
-	val16: ['person','gr_acl'],
-	val32: ['bell','gr_alarm']
-};
 
-	function _toggleButtons()
-	{
-		dom.enable('addCalendarBtn',(_globalsAuth & 1) === 1);
-		dom.enable('manageGlobalAclBtn',((_globalsAuth & 16) === 16));
-		dom.enable('manageAlarmsBtn',((_globalsAuth & 32) === 32));
-		dom.enable('disconnectBtn',_user_infos !== null);
-	}
+function _toggleButtons()
+{
+	dom.enable('addCalendarBtn',(_globalsAuth & 1) === 1);
+	dom.enable('manageGlobalAclBtn',((_globalsAuth & 16) === 16));
+	dom.enable('manageAlarmsBtn',((_globalsAuth & 32) === 32));
+	dom.enable('disconnectBtn',_user_infos !== null);
+}
 
-	function _getUserInformations()
-	{
-		_request('/User/Informations', {}).then(response => {
-			if (response === null)
-				return;
-			response.json().then(infos => {
-				_user_infos = infos;
-				document.getElementById('userNameLabel').innerText = _user_infos['informations']['name'] ?? _('anonymous');
-			});
-		});
-		_request('/Authorization/global', {}).then(response => {
-			if (response === null)
-				return;
-			response.json().then(auth => {
-				_globalsAuth = auth;
-				_toggleButtons();
-			});
-		});
-	}
-
-	async function _refreshCalendarsList()
-	{
-		const response = await _request('/Calendar/catalog');
+function _getUserInformations()
+{
+	_request('/User/Informations', {}).then(response => {
 		if (response === null)
 			return;
-		const calendars = await response.json();
-		const list = document.getElementById('calendarsList');
-		list.innerHTML = '';
-		for (const cal of calendars)
-		{
-			const input = document.createElement('input');
-			input.type = 'radio';
-			input.name = 'calendar';
-			input.id = `cal_${cal.calendar_id}`;
-			input.value = cal.calendar_id;
-			input.checked = (_calendar_id === cal.calendar_id);
-			const label = document.createElement('label');
-			label.className = 'calendar-item';
-			label.htmlFor = `cal_${cal.calendar_id}`;
-			label.textContent = cal.name;
-			label.title = cal.description;
-			label.addEventListener('click', function ()
-			{
-				_calendar_id = cal.calendar_id;
-				_showCalendar();
-			});
-			list.appendChild(input);
-			list.appendChild(label);
-		}
-	}
-
-	async function _showCalendar()
-	{
-		const calendar = document.getElementById('calendar');
-		const no_calendar = document.getElementById('no_calendar');
-		if (_calendar_id === null)
-		{
-			_calendarAuth = 0;
-			dom.enable('addEventBtn', false);
-			dom.enable('importICSBtn', false);
-			dom.enable('calendarInfoBtn', false);
-			dom.enable('editCalendarBtn', false);
-			dom.enable('manageCalendarAclBtn', false);
-			dom.enable('calendarAlarmsBtn', false);
-			calendar.setAttribute('data-hidden', 'true');
-			no_calendar.removeAttribute('data-hidden');
-			dom.enable('removeCalendarBtn',false);
+		response.json().then(infos => {
+			_user_infos = infos;
+			document.getElementById('userNameLabel').innerText = _user_infos['informations']['name'] ?? _('anonymous');
+		});
+	});
+	_request('/Authorization/global', {}).then(response => {
+		if (response === null)
 			return;
-		}
-		const response = await _request(`/Authorization/calendar/${_calendar_id}`);
-		_calendarAuth = response !== null ? await response.json() : 0;
-		dom.enable('addEventBtn', _calendarAuth >= 3);
-		dom.enable('importICSBtn', _calendarAuth >= 3);
-		dom.enable('calendarInfoBtn', _calendarAuth >= 1);
-		dom.enable('editCalendarBtn', _calendarAuth >= 3);
-		dom.enable('manageCalendarAclBtn', _calendarAuth >= 4);
-		dom.enable('calendarAlarmsBtn', _calendarAuth >= 4);
-		dom.enable('removeCalendarBtn', (_calendarAuth >= 4) && (_globalsAuth & 2) === 2);
-		calendar.removeAttribute('data-hidden');
-		no_calendar.setAttribute('data-hidden', 'true');
-//		_calendar.removeAllEvents();
-		_calendar.removeAllEventSources();
-		_calendar.addEventSource({ url: `/Event/list/${_calendar_id}` });
-//		_calendar.refetchEvents();
-		_calendar.render();
-	}
-
-	function _moveTooltip(e)
-	{
-		const tooltip = document.getElementById('pfc-tooltip');
-		tooltip.style.left = (e.clientX + 12) + 'px';
-		tooltip.style.top = (e.clientY + 12) + 'px';
-	}
-
-	function _toDateTimeLocal(str)
-	{
-		if (! str)
-			return '';
-		if (/^\d{4}-\d{2}-\d{2}$/.test(str))
-			return str + 'T00:00';
-		return str.substring(0, 16);
-	}
-
-	function _utcToDateTimeLocal(str, offset = 0)
-	{
-		if (! str) return '';
-		const d = new Date(str);
-		d.setSeconds(d.getSeconds() + offset);
-		const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
-		return local.toISOString().substring(0, 16);
-	}
-
-
-	// Given a full DB identifier and the known sources, return {source, identifier}
-	function _splitIdentifier(full, type)
-	{
-		if (type === 'special' || _sources === null)
-			return { source: '', identifier: full };
-		for (const [source] of _sources)
-		{
-			if (source !== '' && full.startsWith(source))
-				return { source, identifier: full.slice(source.length) };
-		}
-		return { source: '', identifier: full };
-	}
-
-	function _buildSpecialLevelSelect(current)
-	{
-		const select = document.createElement('select');
-		select.className = 'form-select form-select-sm';
-		for (const [val, key] of [[0,'level_forbidden'],[1,'level_free_busy'],[2,'level_read'],[3,'level_write'],[4,'level_acl']])
-		{
-			const opt = document.createElement('option');
-			opt.value = val;
-			opt.textContent = _(key);
-			if (val === current)
-				opt.selected = true;
-			select.appendChild(opt);
-		}
-		return select;
-	}
-
-	function _selectElement({options, value, onchange})
-	{
-		return dom.el({
-			tag: 'select',
-			attrs: {
-				name: 'level',
-				class: 'form-select form-select-sm'
-			},
-			content: options.map((option) => {
-				return {
-					tag: 'option',
-					attrs: {
-						value: option[0],
-						selected: option[0] === value
-					},
-					content: option[1]
-				}
-			}),
-			events: {change: onchange}
+		response.json().then(auth => {
+			_globalsAuth = auth;
+			_toggleButtons();
 		});
-	}
+	});
+}
 
-	async function _calendarAclSave(data)
+async function _refreshCalendarsList()
+{
+	const response = await _request('/Calendar/catalog');
+	if (response === null)
+		return;
+	const calendars = await response.json();
+	const list = document.getElementById('calendarsList');
+	list.innerHTML = '';
+	for (const cal of calendars)
 	{
-		const resp = await _request(`/Authorization/calendaracl/${_calendar_id}`,
+		const input = document.createElement('input');
+		input.type = 'radio';
+		input.name = 'calendar';
+		input.id = `cal_${cal.calendar_id}`;
+		input.value = cal.calendar_id;
+		input.checked = (_calendar_id === cal.calendar_id);
+		const label = document.createElement('label');
+		label.className = 'calendar-item';
+		label.htmlFor = `cal_${cal.calendar_id}`;
+		label.textContent = cal.name;
+		label.title = cal.description;
+		label.addEventListener('click', function ()
 		{
-			method: 'POST',
-			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-			body: new URLSearchParams(data)
+			_calendar_id = cal.calendar_id;
+			_showCalendar();
 		});
-		_calendarAclLoad();
+		list.appendChild(input);
+		list.appendChild(label);
 	}
+}
 
-	async function _calendarAclUpdate(event)
+async function _showCalendar()
+{
+	const calendar = document.getElementById('calendar');
+	const no_calendar = document.getElementById('no_calendar');
+	if (_calendar_id === null)
 	{
-		const tr = event.target.closest('tr');
-		const data = tr.dataset;
-		data.authorization = tr.querySelector('[name=level]').value;
-		_calendarAclSave(data);
+		_calendarAuth = 0;
+		dom.enable('addEventBtn', false);
+		dom.enable('importICSBtn', false);
+		dom.enable('calendarInfoBtn', false);
+		dom.enable('editCalendarBtn', false);
+		dom.enable('manageCalendarAclBtn', false);
+		calendar.setAttribute('data-hidden', 'true');
+		no_calendar.removeAttribute('data-hidden');
+		dom.enable('removeCalendarBtn',false);
+		return;
 	}
+	const response = await _request(`/Authorization/calendar/${_calendar_id}`);
+	_calendarAuth = response !== null ? await response.json() : 0;
+	dom.enable('addEventBtn', _calendarAuth >= 3);
+	dom.enable('importICSBtn', _calendarAuth >= 3);
+	dom.enable('calendarInfoBtn', _calendarAuth >= 1);
+	dom.enable('editCalendarBtn', _calendarAuth >= 3);
+	dom.enable('manageCalendarAclBtn', _calendarAuth >= 4);
+	dom.enable('removeCalendarBtn', (_calendarAuth >= 4) && (_globalsAuth & 2) === 2);
+	calendar.removeAttribute('data-hidden');
+	no_calendar.setAttribute('data-hidden', 'true');
+//	_calendar.removeAllEvents();
+	_calendar.removeAllEventSources();
+	_calendar.addEventSource({ url: `/Event/list/${_calendar_id}` });
+//	_calendar.refetchEvents();
+	_calendar.render();
+}
 
-	async function _calendarAclDelete(key)
-	{
-		const confirmed = await swal({
-			title: _('confirm_delete_acl'),
-			icon: 'warning',
-			buttons: [_('cancel'), _('delete')],
-			dangerMode: true
-		});
-		if (! confirmed)
-			return;
-		const response = await _request(`/Authorization/calendaracl/${_calendar_id}`,
-		{
-			method: 'DELETE',
-			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-			body: new URLSearchParams(key)
-		});
-		_calendarAclLoad();
-	}
+function _moveTooltip(e)
+{
+	const tooltip = document.getElementById('pfc-tooltip');
+	tooltip.style.left = (e.clientX + 12) + 'px';
+	tooltip.style.top = (e.clientY + 12) + 'px';
+}
 
-	async function _calendarAclLoad()
-	{
-		const resp = await _request(`/Authorization/calendaracl/${_calendar_id}`);
-		if (resp === null)
-			return false;
-		const acls = await resp.json();
-		const special = acls.filter((acl) => {return acl.type === 'special'});
-		const tbodySpecial = document.getElementById('calendarSpecialAclList');
-		tbodySpecial.innerHTML = '';
-		if (special.length === 0)
-			tbodySpecial.innerHTML = `<tr><td colspan="5" class="text-center text-muted">${_('no_acl')}</td></tr>`;
-		else
-		{
-			for (const acl of special)
-			{
-				const tr = dom.el({
-					tag: 'tr',
-					attrs: {
-						'data-source': acl.source,
-						'data-identifier': acl.identifier,
-						'data-type': acl.type
-					},
-					content: [
-						{ tag: 'td', content: (acl.identifier === 'anonymous')?_('anonymous'):`${_('connected')} (${(acl.source === '')?_('all'):acl.source})`},
-						{
-							tag: 'td',
-							content: _selectElement({
-								options: _levels,
-								value: acl.authorization,
-								onchange: function (event) { _calendarAclUpdate(event) }
-							})
-						},
-						{
-							tag: 'td',
-							content: {
-								tag: 'button',
-								attrs: {class: 'btn btn-sm btn-outline-danger'},
-								content: [
-									{tag: 'i', attrs: { class: 'bi bi-trash' } }
-								],
-								events: {
-									click: async function(event) { _calendarAclDelete(event.target.closest('tr').dataset) }
-								}
-							}
-						}
-					]
-				});
-				tbodySpecial.appendChild(tr);
-			}
-		}
-		const regular = acls.filter((acl) => {return acl.type !== 'special'});
-		const tbody = document.getElementById('calendarAclList');
-		tbody.innerHTML = '';
-		if (regular.length === 0)
-		{
-			tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">${_('no_acl')}</td></tr>`;
-			return true;
-		}
-		for (const acl of regular)
-		{
-			const tr = dom.el({
-				tag: 'tr',
-				attrs: {
-					'data-source': acl.source,
-					'data-identifier': acl.identifier,
-					'data-type': acl.type
-				},
-				content: [
-					{ tag: 'td', content: acl.source },
-					{ tag: 'td', content: acl.identifier},
-					{ tag: 'td', content: _('type_' + acl.type)},
-					{
-						tag: 'td',
-						content: _selectElement({
-							options: _levels.slice(1),
-							value: acl.authorization,
-							onchange: function (event) { _calendarAclUpdate(event) }
-						})
-					},
-					{
-						tag: 'td',
-						content: {
-							tag: 'button',
-							attrs: {class: 'btn btn-sm btn-outline-danger'},
-							content: {tag: 'i', attrs: { class: 'bi bi-trash' } },
-							events: {
-								click: async function(event) { _calendarAclDelete(event.target.closest('tr').dataset) }
-							}
-						}
-					}
-				]
-			});
-			tbody.appendChild(tr);
-		}
-		return true;
-	}
+function _toDateTimeLocal(str)
+{
+	if (! str)
+		return '';
+	if (/^\d{4}-\d{2}-\d{2}$/.test(str))
+		return str + 'T00:00';
+	return str.substring(0, 16);
+}
 
-	function _globalACLCheck(acl,changeHandler)
-	{
-		acl = Number(acl);
-		const children = [];
-		for (let b = 1; b <= 32; b *= 2)
-		{
-			let key = `val${b}`;
-			children.push({
-				tag: 'label',
-				content: [
-					{
-						tag: 'i',
-						attrs: {
-							class: `bi bi-${_globalACLIcons[key][0]}`,
-							title: _(_globalACLIcons[key][1])
-						}
-					},
-					{
-						tag: 'input',
-						attrs: {
-							type: 'checkbox',
-							value: b,
-							checked: (acl & b) === b
-						},
-						events: {
-							change: changeHandler
-						}
-					}
-				]
-			});
-		}
-		return dom.el({
-			tag: 'div',
-			attrs: {
-				class: 'acl_checkboxes'
-			},
-			content: children
-		});
-	}
+function _utcToDateTimeLocal(str, offset = 0)
+{
+	if (! str) return '';
+	const d = new Date(str);
+	d.setSeconds(d.getSeconds() + offset);
+	const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+	return local.toISOString().substring(0, 16);
+}
 
-	async function _globalAclSave(data)
-	{
-		const r = await _request('/Authorization/globalacl', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-			body: new URLSearchParams(data)
-		});
-		_globalAclLoad();
-	}
 
-	async function _globalAclDelete(key)
-	{
-		const confirmed = await swal({
-			title: _('confirm_delete_acl'),
-			icon: 'warning',
-			buttons: [_('cancel'), _('delete')],
-			dangerMode: true
-		});
-		if (! confirmed) return;
-		const r = await _request('/Authorization/globalacl', {
-			method: 'DELETE',
-			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-			body: new URLSearchParams(key)
-		});
-		_globalAclLoad();
-	}
-
-	function _getAuthorization(element)
-	{
-		const checkboxes = element.querySelectorAll('input');
-		let level = 0;
-		checkboxes.forEach((checkbox) => {
-			if (checkbox.checked)
-				level += Number(checkbox.value);
-		});
-		return level;
-	}
-
-	async function _globalACLUpdate(event)
-	{
-		const tr = event.target.closest('tr');
-		const data = tr.dataset;
-		data.authorization = _getAuthorization(tr);
-		_globalAclSave(data);
-	}
-
-	async function _globalAclLoad()
-	{
-		const resp = await _request('/Authorization/globalacl');
-		if (resp === null)
-			return false;
-		const acls = await resp.json();
-
-		const special = acls.filter((acl) => {return acl.type === 'special'});
-		const specialTbody = document.getElementById('globalACLSpecial');
-		specialTbody.innerHTML = '';
-		for (const acl of special)
-		{
-			specialTbody.appendChild(el({
-				tag: 'tr',
-				attrs: {
-					'data-source': acl.source,
-					'data-identifier': acl.identifier,
-					'data-type': acl.type
-				},
-				content: [
-					{
-						tag: 'td',
-						content: `${acl.identifier} (${(acl.source === '')?_('all_sources'):acl.source})`
-					},
-					{
-						tag: 'td',
-						content: _globalACLCheck(acl.authorization,function (event) {_globalACLUpdate(event)})
-					},
-					{
-						tag: 'td',
-						content: {
-							tag: 'button',
-							attrs: {
-								class: 'btn btn-sm btn-outline-danger'
-							},
-							content: {
-								tag: 'i',
-								attrs: {
-									class: 'bi bi-trash'
-								}
-							},
-							events: {
-								click: function (event) {_globalAclDelete(event.target.closest('tr').dataset)}
-							}
-						}
-					}
-				]
-			}));
-		}
-
-		const regular = acls.filter(a => a.type !== 'special');
-		const tbody = document.getElementById('globalAclList');
-		tbody.innerHTML = '';
-		if (regular.length === 0)
-			tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">${_('no_acl')}</td></tr>`;
-		else
-		{
-			for (const acl of regular)
-			{
-				const auth = parseInt(acl.authorization);
-				tbody.appendChild(el({
-					tag: 'tr',
-					attrs: {
-						'data-source': acl.source,
-						'data-identifier': acl.identifier,
-						'data-type': acl.type
-					},
-					content: [
-						{
-							tag: 'td',
-							content: acl.source
-						},
-						{
-							tag: 'td',
-							content: acl.identifier
-						},
-						{
-							tag: 'td',
-							content: _('type_' + acl.type)
-						},
-						{
-							tag: 'td',
-							content: _globalACLCheck(acl.authorization,function (event) {_globalACLUpdate(event)})
-						},
-						{
-							tag: 'td',
-							content: {
-								tag: 'button',
-								attrs: {
-									class: 'btn btn-sm btn-outline-danger'
-								},
-								content: {
-									tag: 'i',
-									attrs: {
-										class: 'bi bi-trash'
-									}
-								},
-								events: {
-									click: function (event) {_globalAclDelete(event.target.closest('tr').dataset)}
-								}
-							}
-						}
-					]
-				}));
-			}
-		}
-		return true;
-	}
-
-	function _icsSetFile(file)
-	{
-		_icsFile = file;
-		icsDropZone.classList.add('has-file');
-		icsDropZone.classList.remove('drag-over');
-		icsFileName.textContent = file.name;
-		icsFileName.removeAttribute('data-hidden');
-		dom.enable('doImportIcsBtn',true);
-	}
+function _icsSetFile(file)
+{
+	_icsFile = file;
+	icsDropZone.classList.add('has-file');
+	icsDropZone.classList.remove('drag-over');
+	icsFileName.textContent = file.name;
+	icsFileName.removeAttribute('data-hidden');
+	dom.enable('doImportIcsBtn',true);
+}
 	
-	function _icsReset()
-	{
-		_icsFile = null;
-		icsFileInput.value = '';
-		icsDropZone.classList.remove('has-file', 'drag-over');
-		icsFileName.setAttribute('data-hidden', 'true');
-		icsFileName.textContent = '';
-		dom.enable('doImportIcsBtn',false);
-	}
+function _icsReset()
+{
+	_icsFile = null;
+	icsFileInput.value = '';
+	icsDropZone.classList.remove('has-file', 'drag-over');
+	icsFileName.setAttribute('data-hidden', 'true');
+	icsFileName.textContent = '';
+	dom.enable('doImportIcsBtn',false);
+}
 
-	function _rruleBuild()
-	{
-		const rruleUI = document.getElementById('rruleCollapse');
-		const freq = rruleUI.querySelector('[name=rrule_freq]:checked')?.value ?? 'daily';
-		const interval = Math.max(1, parseInt(rruleUI.querySelector('[name=rrule_interval]').value) || 1);
-		const endMode = rruleUI.querySelector('[name=rrule_end]:checked')?.value ?? 'endless';
-		const freqMap = { daily: 'DAILY', weekly: 'WEEKLY', monthly: 'MONTHLY', yearly: 'YEARLY' };
-		const parts = [`FREQ=${freqMap[freq] ?? 'DAILY'}`];
-		if (interval > 1)
-			parts.push(`INTERVAL=${interval}`);
-		if (endMode === 'count') {
-			const count = parseInt(rruleUI.querySelector('[name=rrule_count]').value);
-			if (count >= 2) parts.push(`COUNT=${count}`);
-		} else if (endMode === 'until') {
-			const until = rruleUI.querySelector('[name=rrule_until]').value;
-			if (until) parts.push(`UNTIL=${until.replace(/-/g, '')}T000000Z`);
-		}
-		return parts.join(';');
+function _rruleBuild()
+{
+	const rruleUI = document.getElementById('rruleCollapse');
+	const freq = rruleUI.querySelector('[name=rrule_freq]:checked')?.value ?? 'daily';
+	const interval = Math.max(1, parseInt(rruleUI.querySelector('[name=rrule_interval]').value) || 1);
+	const endMode = rruleUI.querySelector('[name=rrule_end]:checked')?.value ?? 'endless';
+	const freqMap = { daily: 'DAILY', weekly: 'WEEKLY', monthly: 'MONTHLY', yearly: 'YEARLY' };
+	const parts = [`FREQ=${freqMap[freq] ?? 'DAILY'}`];
+	if (interval > 1)
+		parts.push(`INTERVAL=${interval}`);
+	if (endMode === 'count') {
+		const count = parseInt(rruleUI.querySelector('[name=rrule_count]').value);
+		if (count >= 2) parts.push(`COUNT=${count}`);
+	} else if (endMode === 'until') {
+		const until = rruleUI.querySelector('[name=rrule_until]').value;
+		if (until) parts.push(`UNTIL=${until.replace(/-/g, '')}T000000Z`);
 	}
+	return parts.join(';');
+}
 
-	function _rruleSync(e)
-	{
-		if (e.target.name !== 'rrule')
-			document.querySelector('[name=rrule]').value = _rruleBuild();
-	}
-
-	// Alarms management
+function _rruleSync(e)
+{
+	if (e.target.name !== 'rrule')
+		document.querySelector('[name=rrule]').value = _rruleBuild();
+}
 
 	// constructeur
-	function construct(lang,sources)
+function construct(lang,sources)
+{
+	_sources = sources;
+	const self = this;
+	fetch('/index/translations',{}).then(async function (response)
 	{
-		_sources = sources;
-		const self = this;
-		fetch('/index/translations',{}).then(async function (response)
-		{
-			if (response.ok)
-				_setTranslations(await response.json());
-			else
-				_setTranslations({});
-			_levels = [
-				[0,_('no_access')],
-				[1,_('level_free_busy')],
-				[2,_('level_read')],
-				[3,_('level_write')],
-				[4,_('level_acl')]
-			];
-			_globalPermissions = [
-				[1, _('gr_cal_create')],
-				[2, _('gr_cal_destroy')],
-				[4, _('gr_res_add')],
-				[8, _('gr_res_del')],
-				[16, _('gr_acl')],
-				[32, _('gr_alarm')]
-			];
-			_calendar = new FullCalendar.Calendar(document.getElementById('calendar'),{
-				'locale': lang,
-				'headerToolbar': {
-					'left': 'prev,next today',
-					'center': 'title',
-					'right': 'timeGridDay,timeGridWeek,dayGridMonth,dayGridYear'
+		if (response.ok)
+			_setTranslations(await response.json());
+		else
+			_setTranslations({});
+		_globalPermissions = [
+			[1, _('gr_cal_create')],
+			[2, _('gr_cal_destroy')],
+			[4, _('gr_res_add')],
+			[8, _('gr_res_del')],
+			[16, _('gr_acl')],
+			[32, _('gr_alarm')]
+		];
+		_calendar = new FullCalendar.Calendar(document.getElementById('calendar'),{
+			'locale': lang,
+			'headerToolbar': {
+				'left': 'prev,next today',
+				'center': 'title',
+				'right': 'timeGridDay,timeGridWeek,dayGridMonth,dayGridYear'
+			},
+			'views': {
+				'timeGridDay': {
+					'allDaySlot': false
 				},
-				'views': {
-					'timeGridDay': {
-						'allDaySlot': false
-					},
-					'timeGridWeek': {
-						'allDaySlot': false
-					}
-				},
-				'initialView': 'timeGridWeek',
-				'height': '100%',
-			});
-
-			// Connection managment
-
-			document.getElementById('loginBtn').addEventListener('click', self.connect);
-			document.getElementById('disconnectBtn').addEventListener('click', self.disconnect);
-
-			document.addEventListener('click', function(e) {
-				const btn = e.target.closest('[data-copy-link]');
-				if (!btn) return;
-				const link = document.getElementById(btn.dataset.copyLink);
-				if (!link) return;
-				navigator.clipboard.writeText(link.href).then(() => {
-					const icon = btn.querySelector('i');
-					icon.className = 'bi bi-clipboard2-check-fill';
-					setTimeout(() => { icon.className = 'bi bi-clipboard2-fill'; }, 1500);
-				});
-			});
-
-			// Calendars managment
-
-			document.getElementById('addCalendarBtn').addEventListener('click', function () {
-				_calendar_id = null;
-				document.getElementById('calendarForm').reset();
-				dom.getModal('calendar').show();
-			});
-			document.getElementById('calendarInfoBtn').addEventListener('click', async function () {
-				if (_calendar_id === null)
-					return;
-				const response = await _request(`/Calendar/read/${_calendar_id}`);
-				if (response === null)
-					return;
-				const cal = await response.json();
-				document.getElementById('infoCalendarName').textContent = cal.name;
-				document.getElementById('infoCalendarDescription').textContent = cal.description ?? '';
-				const icsUrl = `${window.location.origin}/$/Event/ics/${_calendar_id}`;
-				const link = document.getElementById('infoIcsLink');
-				link.href = icsUrl;
-				link.textContent = icsUrl;
-				const fcUrl = `${window.location.origin}/$/Event/list/${_calendar_id}`;
-				const fcLink = document.getElementById('infoFcLink');
-				fcLink.href = fcUrl;
-				fcLink.textContent = fcUrl;
-				dom.getModal('info').show();
-			});
-			document.getElementById('editCalendarBtn').addEventListener('click', async function () {
-				if (_calendar_id === null)
-					return;
-				const response = await _request(`/Calendar/read/${_calendar_id}`);
-				if (response === null)
-					return;
-				const data = await response.json();
-				const form = document.getElementById('calendarForm');
-				form.reset();
-				form.querySelectorAll('[name]').forEach(field => field.value = data[field.name]);
-				dom.getModal('calendar').show();
-			});
-			document.getElementById('removeCalendarBtn').addEventListener('click', async function () {
-				const confirmed = await swal({
-					title: _('confirm_delete_calendar'),
-					icon: 'warning',
-					buttons: true,
-					dangerMode: true
-				});
-				if (! confirmed)
-					return;
-				const response = await _request(`/Calendar/delete/${_calendar_id}`);
-				if (response === null)
-					return;
-				_calendar_id = null;
-				await _refreshCalendarsList();
-				_showCalendar();
-			});
-			document.getElementById('saveCalendarBtn').addEventListener('click', async function (event) {
-				const fields = event.target.closest('div .modal-content').querySelectorAll('[name]');
-				const data = {};
-				for (const field of fields)
-					data[field.name] = field.value;
-				const url = _calendar_id ? `/Calendar/update/${_calendar_id}` : '/Calendar/create';
-				const response = await _request(url,
-				{
-					method: 'POST',
-					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-					body: new URLSearchParams(data)
-				});
-				if (response === null)
-					return;
-				if (_calendar_id === null)
-				{
-					_calendar_id = await response.json();
-					_showCalendar();
+				'timeGridWeek': {
+					'allDaySlot': false
 				}
-				await _refreshCalendarsList();
-				dom.getModal('calendar').hide();
+			},
+			'initialView': 'timeGridWeek',
+			'height': '100%',
+		});
+		// Connection managment
+		document.getElementById('loginBtn').addEventListener('click', self.connect);
+		document.getElementById('disconnectBtn').addEventListener('click', self.disconnect);
+
+		document.addEventListener('click', function(e) {
+			const btn = e.target.closest('[data-copy-link]');
+			if (!btn) return;
+			const link = document.getElementById(btn.dataset.copyLink);
+			if (!link) return;
+			navigator.clipboard.writeText(link.href).then(() => {
+				const icon = btn.querySelector('i');
+				icon.className = 'bi bi-clipboard2-check-fill';
+				setTimeout(() => { icon.className = 'bi bi-clipboard2-fill'; }, 1500);
 			});
+		});
+
+		// Calendars managment
+
+		document.getElementById('addCalendarBtn').addEventListener('click', function () {
+			_calendar_id = null;
+			document.getElementById('calendarForm').reset();
+			_hideAlarmWidget('calendar');
+			dom.getModal('calendar').show();
+		});
+		document.getElementById('calendarInfoBtn').addEventListener('click', async function () {
+			if (_calendar_id === null)
+				return;
+			const response = await _request(`/Calendar/read/${_calendar_id}`);
+			if (response === null)
+				return;
+			const cal = await response.json();
+			document.getElementById('infoCalendarName').textContent = cal.name;
+			document.getElementById('infoCalendarDescription').textContent = cal.description ?? '';
+			const icsUrl = `${window.location.origin}/$/Event/ics/${_calendar_id}`;
+			const link = document.getElementById('infoIcsLink');
+			link.href = icsUrl;
+			link.textContent = icsUrl;
+			const fcUrl = `${window.location.origin}/$/Event/list/${_calendar_id}`;
+			const fcLink = document.getElementById('infoFcLink');
+			fcLink.href = fcUrl;
+			fcLink.textContent = fcUrl;
+			dom.getModal('info').show();
+		});
+		document.getElementById('editCalendarBtn').addEventListener('click', async function () {
+			if (_calendar_id === null)
+				return;
+			const response = await _request(`/Calendar/read/${_calendar_id}`);
+			if (response === null)
+				return;
+			const data = await response.json();
+			const form = document.getElementById('calendarForm');
+			form.reset();
+			form.querySelectorAll('[name]').forEach(field => field.value = data[field.name]);
+			await _alarmWidgetLoad('calendar', _calendar_id, _calendarAuth >= 4);
+			dom.getModal('calendar').show();
+		});
+		document.getElementById('removeCalendarBtn').addEventListener('click', async function () {
+			const confirmed = await swal({
+				title: _('confirm_delete_calendar'),
+				icon: 'warning',
+				buttons: true,
+				dangerMode: true
+			});
+			if (! confirmed)
+				return;
+			const response = await _request(`/Calendar/delete/${_calendar_id}`);
+			if (response === null)
+				return;
+			_calendar_id = null;
+			await _refreshCalendarsList();
+			_showCalendar();
+		});
+		document.getElementById('saveCalendarBtn').addEventListener('click', async function (event) {
+			const fields = event.target.closest('div .modal-content').querySelectorAll('[name]');
+			const data = {};
+			for (const field of fields)
+				data[field.name] = field.value;
+			const url = _calendar_id ? `/Calendar/update/${_calendar_id}` : '/Calendar/create';
+			const response = await _request(url,
+			{
+				method: 'POST',
+				headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+				body: new URLSearchParams(data)
+			});
+			if (response === null)
+				return;
+			if (_calendar_id === null)
+			{
+				_calendar_id = await response.json();
+				_showCalendar();
+			}
+			await _refreshCalendarsList();
+			dom.getModal('calendar').hide();
+		});
 
 			// Events managment
-
 			const rruleCollapse = document.getElementById('rruleCollapse');
 			const rruleCollapseBtn = document.querySelector('[data-bs-target="#rruleCollapse"]');
 			const rruleActive = document.getElementById('rruleActive');
@@ -748,7 +348,7 @@ const _globalACLIcons = {
 				form.querySelector('input[name=end]').value = _toDateTimeLocal(info.dateStr);
 				document.getElementById('eventModalTitle').textContent = _('new_event');
 				document.getElementById('deleteEventBtn').disabled = true;
-				_eventAlarmsHint();
+				_hideAlarmWidget('event');
 				dom.getModal('event').show();
 			});
 			_calendar.on('eventClick', async function(info) {
@@ -804,7 +404,7 @@ const _globalACLIcons = {
 					_rruleHide();
 				document.getElementById('eventModalTitle').textContent = _('edit_event');
 				document.getElementById('deleteEventBtn').disabled = (_calendarAuth < 3);
-				_alarmAttachments(document.getElementById('eventAlarmsList'), 'Event', _event_id, _calendarAuth >= 3);
+				await _alarmWidgetLoad('event', _event_id, _calendarAuth >= 3);
 				dom.getModal('event').show();
 			});
 			document.getElementById('addEventBtn').addEventListener('click', function () {
@@ -813,7 +413,7 @@ const _globalACLIcons = {
 				_rruleHide();
 				document.getElementById('rruleExpertSection').style.display = 'none';
 				dom.enable('deleteEventBtn',false);
-				_eventAlarmsHint();
+				_hideAlarmWidget('event');
 				dom.getModal('event').show();
 			});
 			document.getElementById('copyStartToEndBtn').addEventListener('click', function () {
@@ -967,67 +567,10 @@ const _globalACLIcons = {
 				swal({ title: _('import_ics'), text: _('ics_import_success').replace('%d', result.imported), icon: 'success' });
 			});
 
-			// Calendar ACL managment
-
-			document.getElementById('manageCalendarAclBtn').addEventListener('click', async function () {
-				const success = await _calendarAclLoad();
-				if (success)
-					dom.getModal('calendarAcl').show();
-			});
-			document.getElementById('calendarAlarmsBtn').addEventListener('click', async function () {
-				if (_calendar_id === null)
-					return;
-				await _alarmAttachments(document.getElementById('calendarAlarmsList'), 'Calendar', _calendar_id, _calendarAuth >= 4);
-				dom.getModal('calendarAlarms').show();
-			});
-			document.getElementById('globalAclAddSpecial').addEventListener('click', function (event) {
-				const tr = event.target.closest('tr')
-				const matches = tr.querySelector('[name=user_type]').value.match(/^([^:]*):(.*)$/);
-				const data = {
-					source: matches[1],
-					identifier: matches[2],
-					type: 'special',
-					authorization: _getAuthorization(tr.querySelector('.acl_checkboxes'))
-				};
-				_globalAclSave(data);
-			});
-			document.getElementById('globalAclAddRegular').addEventListener('click', function (event) {
-				const tr = event.target.closest('tr')
-				const fields = tr.querySelectorAll('[name]');
-				const data = {};
-				fields.forEach((field) => {data[field.name] = field.value});
-				data['authorization'] = _getAuthorization(tr.querySelector('.acl_checkboxes'));
-				_globalAclSave(data);
-			});
-			document.getElementById('calendarAclAddSpecial').addEventListener('click', function (event) {
-				const tr = event.target.closest('tr');
-				const matches = tr.querySelector('[name=user_type]').value.match(/^([^:]*):(.*)$/);
-				const data = {
-					source: matches[1],
-					identifier: matches[2],
-					type: 'special',
-					authorization: tr.querySelector('[name=authorization]').value
-				};
-				_calendarAclSave(data);
-			});
-			document.getElementById('calendarAclAddRegular').addEventListener('click', function (event) {
-				const tr = event.target.closest('tr');
-				const fields = tr.querySelectorAll('[name]');
-				const data = {};
-				fields.forEach((field) => {data[field.name] = field.value});
-				_calendarAclSave(data);
-			});
-
-			// Global ACL
-
-			document.getElementById('manageGlobalAclBtn').addEventListener('click', async function () {
-				const success = await _globalAclLoad();
-				if (success)
-					dom.getModal('globalAcl').show();
-			});
+			GlobalACL.Init();
+			CalendarACL.Init(() => _calendar_id);
 
 			// Alarms
-
 			_initAlarms();
 
 			_showCalendar();

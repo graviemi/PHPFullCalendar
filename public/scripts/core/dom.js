@@ -22,12 +22,6 @@ export function getModal(name)
 	return _modals[name];
 }
 
-// Escape HTML to safely insert user-controlled content via innerHTML
-export function h(str)
-{
-	return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
 // Build a DOM element from a spec : {tag, content, attrs, events}.
 // content may be a string, an Element, a spec, or an array of those.
 export function el({tag, content = '', attrs = {}, events = {}})

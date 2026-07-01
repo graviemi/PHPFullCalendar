@@ -17,6 +17,14 @@
 						<label class="form-label"><?= _::uf('calendar_description') ?></label>
 						<textarea class="form-control" name="description"></textarea>
 					</div>
+					<div class="mb-3" id="calendarAlarmsWidget" style="display:none">
+						<label class="form-label"><?= _::uf('calendar_alarms') ?></label>
+						<div class="d-flex gap-2 mb-2">
+							<select class="form-select form-select-sm" id="calendarAlarmPicker"></select>
+							<button type="button" class="btn btn-sm btn-outline-primary" id="calendarAlarmAdd"><i class="bi bi-plus"></i></button>
+						</div>
+						<ul class="list-group" id="calendarAlarmList"></ul>
+					</div>
 				</div>
 				<div class="modal-footer">
 					<button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal"><?= _::uf('cancel') ?></button>

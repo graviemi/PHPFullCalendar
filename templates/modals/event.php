@@ -101,7 +101,14 @@
 
 					<div class="mb-3">
 						<label class="form-label"><?= _::uf('event_alarms') ?></label>
-						<div id="eventAlarmsList"></div>
+						<div id="eventAlarmsWidget">
+							<div class="d-flex gap-2 mb-2">
+								<select class="form-select form-select-sm" id="eventAlarmPicker"></select>
+								<button type="button" class="btn btn-sm btn-outline-primary" id="eventAlarmAdd"><i class="bi bi-plus"></i></button>
+							</div>
+							<ul class="list-group" id="eventAlarmList"></ul>
+						</div>
+						<div id="eventAlarmsHint" class="text-muted small" style="display:none"><?= _::_('alarm_save_event_first') ?></div>
 					</div>
 
 					<div class="mb-3">

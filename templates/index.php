@@ -49,9 +49,6 @@ foreach (_::$conf['authentication'] as $source => $data)
 				<button class="btn btn-sm btn-outline-primary" id="manageCalendarAclBtn" disabled>
 					<i class="bi bi-person-fill-check"></i> <?= _::uf('calendar') ?>
 				</button>
-				<button class="btn btn-sm btn-outline-primary" id="calendarAlarmsBtn" disabled>
-					<i class="bi bi-bell-fill"></i> <?= _::uf('calendar') ?>
-				</button>
 				<div class="vr"></div>
 				<button class="btn btn-sm btn-outline-primary" id="addCalendarBtn" disabled>
 					<i class="bi bi-plus-circle-fill"></i> <?= _::uf('calendar') ?>
@@ -60,7 +57,7 @@ foreach (_::$conf['authentication'] as $source => $data)
 					<i class="bi bi-gear-fill"></i> <?= _::uf('global') ?>
 				</button>
 				<button class="btn btn-sm btn-outline-primary" id="manageAlarmsBtn" data-bs-toggle="modal" data-bs-target="#alarmsModal" disabled>
-					<i class="bi bi-bell"></i> <?= _::uf('manage_alarms') ?>
+					<i class="bi bi-bell-fill"></i> <?= _::uf('manage_alarms') ?>
 				</button>
 			</div>
 			<div class="d-flex align-items-center gap-3">
