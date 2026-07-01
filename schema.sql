@@ -276,7 +276,6 @@ CREATE TABLE `recipient` (
   `recipient_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `address` varchar(255) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
   `name` varchar(255) DEFAULT NULL,
-  `firstname` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`recipient_id`),
   UNIQUE KEY `address` (`address`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
