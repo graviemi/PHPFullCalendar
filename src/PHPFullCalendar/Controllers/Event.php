@@ -9,8 +9,10 @@ use DateTimeImmutable,
 	oTools\Ics\Exception as IcsException,
 	oTools\Ics\Component as IcsComponent,
 	PHPFullCalendar\_,
+	PHPFullCalendar\Exception,
 	PHPFullCalendar\Database\ACL,
 	PHPFullCalendar\Database\Calendar as CalendarDB,
+	PHPFullCalendar\Database\Alarm as AlarmDB,
 	PHPFullCalendar\Views\Json,
 	PHPFullCalendar\Views\Ics,
 	PHPFullCalendar\Views\FreeBusy,
@@ -275,7 +277,33 @@ class Event extends ControllerAbstract
 		$events = $db->getEvents($calendar_id, $start, $end);
 		if ($auth === ACL::CAL_FREE_BUSY)
 			return new FreeBusy($calendar['name'], $events, $lastModified ?: null);
-		return new Ics($calendar['name'], $events, $lastModified ?: null);
+		// gather alarms (event + calendar defaults) grouped by event, with recipients/sound resolved
+		$alarmDb = new AlarmDB(_::getPDO());
+		$alarmsByEvent = [];
+		$recipients = [];
+		$audios = [];
+		foreach ($db->getEventsAlarms($calendar_id, $start, $end) as $alarm)
+		{
+			if ($alarm['email_id'] !== null)
+			{
+				$email_id = (int) $alarm['email_id'];
+				if (! isset($recipients[$email_id]))
+					$recipients[$email_id] = array_map(fn($r) => $r['address'], $alarmDb->getEmailRecipients($email_id));
+				$alarm['recipients'] = $recipients[$email_id];
+			}
+			if ($alarm['audio_id'] !== null)
+			{
+				$audio_id = (int) $alarm['audio_id'];
+				if (! isset($audios[$audio_id]))
+				{
+					$audio = $alarmDb->getAudio($audio_id);
+					$audios[$audio_id] = ['mimetype' => $audio['mimetype'], 'sound' => $audio['sound']];
+				}
+				$alarm['audio'] = $audios[$audio_id];
+			}
+			$alarmsByEvent[$alarm['event_id']][] = $alarm;
+		}
+		return new Ics($calendar['name'], $events, $alarmsByEvent, $lastModified ?: null);
 	}
 
 	protected function _put_ics()

@@ -146,7 +146,7 @@
 									</div>
 									<div class="mb-3">
 										<label class="form-label"><?= _::uf('alarm_email_summary') ?> (Twig)</label>
-										<input type="text" class="form-control font-monospace" name="summary" placeholder="<?= _::_('example') ?> : [{{ calendar }}] {{ title }}">
+										<input type="text" class="form-control font-monospace" name="summary" placeholder="<?= _::_('example') ?> : [{{calendar}}] {{title}}">
 									</div>
 									<div class="mb-3">
 										<label class="form-label"><?= _::uf('description') ?></label>
@@ -220,7 +220,7 @@
 									</div>
 									<div class="mb-3">
 										<label class="form-label"><?= _::uf('description') ?> (Twig)</label>
-										<textarea class="form-control font-monospace" name="contents" rows="3" placeholder="<?= _::_('example') ?> : {{ title }} — {{ start }}"></textarea>
+										<textarea class="form-control font-monospace" name="contents" rows="3" placeholder="<?= _::_('example') ?> : {{title}} — {{start}}"></textarea>
 									</div>
 									<div class="d-flex gap-2">
 										<button type="button" class="btn btn-sm btn-secondary me-auto" data-ent-back="description"><i class="bi bi-arrow-left"></i> <?= _::uf('back') ?></button>
