@@ -31,42 +31,44 @@ foreach (_::$conf['authentication'] as $source => $data)
 	<body>
 		<nav class="navbar bg-body-tertiary px-3">
 			<div class="d-flex gap-2">
-				<button class="btn btn-sm btn-outline-primary" id="addEventBtn" disabled>
-					<i class="bi bi-plus-circle-fill"></i> <?= _::uf('event') ?>
-				</button>
-				<button class="btn btn-sm btn-outline-primary" id="importICSBtn" data-bs-toggle="modal" data-bs-target="#importIcsModal" disabled>
-					<i class="bi bi-cloud-upload-fill"></i> <?= _::uf('import_ics') ?>
-				</button>
-				<button class="btn btn-sm btn-outline-primary" id="calendarInfoBtn" disabled>
-					<i class="bi bi-info-circle-fill"></i> <?= _::uf('calendar') ?>
-				</button>
-				<button class="btn btn-sm btn-outline-primary" id="editCalendarBtn" disabled>
-					<i class="bi bi-pen-fill"></i> <?= _::uf('calendar') ?>
-				</button>
-				<button class="btn btn-sm btn-outline-danger" id="removeCalendarBtn" disabled>
-					<i class="bi bi-trash-fill"></i> <?= _::uf('calendar') ?>
-				</button>
-				<button class="btn btn-sm btn-outline-primary" id="manageCalendarAclBtn" disabled>
-					<i class="bi bi-person-fill-check"></i> <?= _::uf('calendar') ?>
+				<button class="btn btn-sm btn-outline-primary" id="addEventBtn" title="<?= _::uf('add_event') ?>" disabled>
+					<i class="bi bi-plus-circle-fill"  style="font-size: 1.1rem;"></i> <?= _::uf('event') ?>
 				</button>
 				<div class="vr"></div>
-				<button class="btn btn-sm btn-outline-primary" id="addCalendarBtn" disabled>
-					<i class="bi bi-plus-circle-fill"></i> <?= _::uf('calendar') ?>
+				<label class="col-form-label"><?= _::uf('calendar') ?></label>
+				<button class="btn btn-sm btn-outline-primary" id="addCalendarBtn" title="<?= _::uf('add_calendar') ?>" disabled>
+					<i class="bi bi-plus-circle-fill"  style="font-size: 1.1rem;"></i>
 				</button>
-				<button class="btn btn-sm btn-outline-primary" id="manageGlobalAclBtn" disabled>
-					<i class="bi bi-gear-fill"></i> <?= _::uf('global') ?>
+				<button class="btn btn-sm btn-outline-primary" id="calendarInfoBtn" title="<?= _::uf('calendar_info') ?>" disabled>
+					<i class="bi bi-info-circle-fill"  style="font-size: 1.1rem;"></i>
 				</button>
-				<button class="btn btn-sm btn-outline-primary" id="manageAlarmsBtn" data-bs-toggle="modal" data-bs-target="#alarmsModal" disabled>
-					<i class="bi bi-bell-fill"></i> <?= _::uf('manage_alarms') ?>
+				<button class="btn btn-sm btn-outline-primary" id="editCalendarBtn" title="<?= _::uf('edit_calendar') ?>" disabled>
+					<i class="bi bi-pen-fill" style="font-size: 1.1rem;"></i>
+				</button>
+				<button class="btn btn-sm btn-outline-danger" id="removeCalendarBtn" title="<?= _::uf('remove_calendar') ?>" disabled>
+					<i class="bi bi-trash-fill"  style="font-size: 1.1rem;"></i>
+				</button>
+				<button class="btn btn-sm btn-outline-primary" style="font-size: 1.1rem;" id="importICSBtn" title="<?= _::uf('import_ics') ?>" data-bs-toggle="modal" data-bs-target="#importIcsModal" disabled>
+					<i class="bi bi-upload"></i> ICS
+				</button>
+				<button class="btn btn-sm btn-outline-primary" id="manageCalendarAclBtn" title="<?= _::uf('manage_calendar_acl') ?>" disabled>
+					<i class="bi bi-person-fill-check"  style="font-size: 1.1rem;"></i>
+				</button>
+				<div class="vr"></div>
+				<button class="btn btn-sm btn-outline-primary" id="manageGlobalAclBtn" title="<?= _::uf('manage_global_acl') ?>" disabled>
+					<i class="bi bi-gear-fill"  style="font-size: 1.1rem;"></i> <?= _::uf('global') ?>
+				</button>
+				<button class="btn btn-sm btn-outline-primary" id="manageAlarmsBtn" title="<?= _::uf('manage_alarms') ?>" data-bs-toggle="modal" data-bs-target="#alarmsModal" disabled>
+					<i class="bi bi-bell-fill"  style="font-size: 1.1rem;"></i> <?= _::uf('manage_alarms') ?>
 				</button>
 			</div>
 			<div class="d-flex align-items-center gap-3">
 				<span class="text-body-secondary" id="userNameLabel"><?= _::uf('anonymous') ?></span>
-				<button class="btn btn-sm btn-outline-primary" id="disconnectBtn" disabled>
-					<i class="bi bi-box-arrow-right"></i> <?= _::uf('disconnect') ?>
+				<button class="btn btn-sm btn-outline-primary" id="disconnectBtn" title="<?= _::uf('disconnect') ?>" disabled>
+					<i class="bi bi-box-arrow-right"  style="font-size: 1.1rem;"></i> <?= _::uf('disconnect') ?>
 				</button>
-				<button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#helpModal">
-					<i class="bi bi-question-circle"></i>
+				<button class="btn btn-sm btn-outline-primary" title="<?= _::uf('help') ?>" data-bs-toggle="modal" data-bs-target="#helpModal">
+					<i class="bi bi-question-circle"  style="font-size: 1.1rem;"></i>
 				</button>
 			</div>
 		</nav>

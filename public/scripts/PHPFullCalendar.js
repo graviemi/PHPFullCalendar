@@ -8,11 +8,10 @@ import { request as _request, checkConnection as _checkConnection, loadingShow a
 import { initAlarms as _initAlarms, alarmWidgetLoad as _alarmWidgetLoad, hideAlarmWidget as _hideAlarmWidget, eventCalendarAlarmsLoad as _eventCalendarAlarmsLoad } from './alarms.js';
 import * as GlobalACL from './GlobalACL.js';
 import * as CalendarACL from './CalendarACL.js';
+import * as Calendar from './Calendar.js';
 
 let _calendar; // FullCalendar.js
-let _calendar_id = null; // selected calendar unique database id
 let _globalsAuth = 0; // connected user global authorizations
-let _calendarAuth = 0; // connected user selected calendar authorizations
 let _event_id = null; // clicked calendar event unique database id
 let _user_infos;
 let _sources = null;
@@ -46,71 +45,6 @@ function _getUserInformations()
 			_toggleButtons();
 		});
 	});
-}
-
-async function _refreshCalendarsList()
-{
-	const response = await _request('/Calendar/catalog');
-	if (response === null)
-		return;
-	const calendars = await response.json();
-	const list = document.getElementById('calendarsList');
-	list.innerHTML = '';
-	for (const cal of calendars)
-	{
-		const input = document.createElement('input');
-		input.type = 'radio';
-		input.name = 'calendar';
-		input.id = `cal_${cal.calendar_id}`;
-		input.value = cal.calendar_id;
-		input.checked = (_calendar_id === cal.calendar_id);
-		const label = document.createElement('label');
-		label.className = 'calendar-item';
-		label.htmlFor = `cal_${cal.calendar_id}`;
-		label.textContent = cal.name;
-		label.title = cal.description;
-		label.addEventListener('click', function ()
-		{
-			_calendar_id = cal.calendar_id;
-			_showCalendar();
-		});
-		list.appendChild(input);
-		list.appendChild(label);
-	}
-}
-
-async function _showCalendar()
-{
-	const calendar = document.getElementById('calendar');
-	const no_calendar = document.getElementById('no_calendar');
-	if (_calendar_id === null)
-	{
-		_calendarAuth = 0;
-		dom.enable('addEventBtn', false);
-		dom.enable('importICSBtn', false);
-		dom.enable('calendarInfoBtn', false);
-		dom.enable('editCalendarBtn', false);
-		dom.enable('manageCalendarAclBtn', false);
-		calendar.setAttribute('data-hidden', 'true');
-		no_calendar.removeAttribute('data-hidden');
-		dom.enable('removeCalendarBtn',false);
-		return;
-	}
-	const response = await _request(`/Authorization/calendar/${_calendar_id}`);
-	_calendarAuth = response !== null ? await response.json() : 0;
-	dom.enable('addEventBtn', _calendarAuth >= 3);
-	dom.enable('importICSBtn', _calendarAuth >= 3);
-	dom.enable('calendarInfoBtn', _calendarAuth >= 1);
-	dom.enable('editCalendarBtn', _calendarAuth >= 3);
-	dom.enable('manageCalendarAclBtn', _calendarAuth >= 4);
-	dom.enable('removeCalendarBtn', (_calendarAuth >= 4) && (_globalsAuth & 2) === 2);
-	calendar.removeAttribute('data-hidden');
-	no_calendar.setAttribute('data-hidden', 'true');
-//	_calendar.removeAllEvents();
-	_calendar.removeAllEventSources();
-	_calendar.addEventSource({ url: `/Event/list/${_calendar_id}` });
-//	_calendar.refetchEvents();
-	_calendar.render();
 }
 
 function _moveTooltip(e)
@@ -190,6 +124,9 @@ function construct(lang,sources)
 {
 	_sources = sources;
 	const self = this;
+	// toolbar tooltips (titles are server-side translated ; Popper via bootstrap.bundle)
+	for (const button of document.querySelectorAll('nav .btn[title]'))
+		new bootstrap.Tooltip(button);
 	fetch('/index/translations',{}).then(async function (response)
 	{
 		if (response.ok)
@@ -240,82 +177,7 @@ function construct(lang,sources)
 
 		// Calendars managment
 
-		document.getElementById('addCalendarBtn').addEventListener('click', function () {
-			_calendar_id = null;
-			document.getElementById('calendarForm').reset();
-			_hideAlarmWidget('calendar');
-			dom.getModal('calendar').show();
-		});
-		document.getElementById('calendarInfoBtn').addEventListener('click', async function () {
-			if (_calendar_id === null)
-				return;
-			const response = await _request(`/Calendar/read/${_calendar_id}`);
-			if (response === null)
-				return;
-			const cal = await response.json();
-			document.getElementById('infoCalendarName').textContent = cal.name;
-			document.getElementById('infoCalendarDescription').textContent = cal.description ?? '';
-			const icsUrl = `${window.location.origin}/$/Event/ics/${_calendar_id}`;
-			const link = document.getElementById('infoIcsLink');
-			link.href = icsUrl;
-			link.textContent = icsUrl;
-			const fcUrl = `${window.location.origin}/$/Event/list/${_calendar_id}`;
-			const fcLink = document.getElementById('infoFcLink');
-			fcLink.href = fcUrl;
-			fcLink.textContent = fcUrl;
-			dom.getModal('info').show();
-		});
-		document.getElementById('editCalendarBtn').addEventListener('click', async function () {
-			if (_calendar_id === null)
-				return;
-			const response = await _request(`/Calendar/read/${_calendar_id}`);
-			if (response === null)
-				return;
-			const data = await response.json();
-			const form = document.getElementById('calendarForm');
-			form.reset();
-			form.querySelectorAll('[name]').forEach(field => field.value = data[field.name]);
-			await _alarmWidgetLoad('calendar', _calendar_id, _calendarAuth >= 4);
-			dom.getModal('calendar').show();
-		});
-		document.getElementById('removeCalendarBtn').addEventListener('click', async function () {
-			const confirmed = await swal({
-				title: _('confirm_delete_calendar'),
-				icon: 'warning',
-				buttons: true,
-				dangerMode: true
-			});
-			if (! confirmed)
-				return;
-			const response = await _request(`/Calendar/delete/${_calendar_id}`);
-			if (response === null)
-				return;
-			_calendar_id = null;
-			await _refreshCalendarsList();
-			_showCalendar();
-		});
-		document.getElementById('saveCalendarBtn').addEventListener('click', async function (event) {
-			const fields = event.target.closest('div .modal-content').querySelectorAll('[name]');
-			const data = {};
-			for (const field of fields)
-				data[field.name] = field.value;
-			const url = _calendar_id ? `/Calendar/update/${_calendar_id}` : '/Calendar/create';
-			const response = await _request(url,
-			{
-				method: 'POST',
-				headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-				body: new URLSearchParams(data)
-			});
-			if (response === null)
-				return;
-			if (_calendar_id === null)
-			{
-				_calendar_id = await response.json();
-				_showCalendar();
-			}
-			await _refreshCalendarsList();
-			dom.getModal('calendar').hide();
-		});
+		Calendar.Init(() => _calendar, () => _globalsAuth);
 
 			// Events managment
 			const rruleCollapse = document.getElementById('rruleCollapse');
@@ -349,7 +211,7 @@ function construct(lang,sources)
 				document.getElementById('eventModalTitle').textContent = _('new_event');
 				document.getElementById('deleteEventBtn').disabled = true;
 				_hideAlarmWidget('event');
-				_eventCalendarAlarmsLoad(_calendar_id);
+				_eventCalendarAlarmsLoad(Calendar.Id());
 				dom.getModal('event').show();
 			});
 			_calendar.on('eventClick', async function(info) {
@@ -404,9 +266,9 @@ function construct(lang,sources)
 				else
 					_rruleHide();
 				document.getElementById('eventModalTitle').textContent = _('edit_event');
-				document.getElementById('deleteEventBtn').disabled = (_calendarAuth < 3);
-				await _alarmWidgetLoad('event', _event_id, _calendarAuth >= 3);
-				_eventCalendarAlarmsLoad(_calendar_id);
+				document.getElementById('deleteEventBtn').disabled = (Calendar.Auth() < 3);
+				await _alarmWidgetLoad('event', _event_id, Calendar.Auth() >= 3);
+				_eventCalendarAlarmsLoad(Calendar.Id());
 				dom.getModal('event').show();
 			});
 			document.getElementById('addEventBtn').addEventListener('click', function () {
@@ -416,7 +278,7 @@ function construct(lang,sources)
 				document.getElementById('rruleExpertSection').style.display = 'none';
 				dom.enable('deleteEventBtn',false);
 				_hideAlarmWidget('event');
-				_eventCalendarAlarmsLoad(_calendar_id);
+				_eventCalendarAlarmsLoad(Calendar.Id());
 				dom.getModal('event').show();
 			});
 			document.getElementById('copyStartToEndBtn').addEventListener('click', function () {
@@ -446,7 +308,7 @@ function construct(lang,sources)
 						data[field.name] = field.value;
 				});
 //				console.log(data);
-				const url = _event_id ? `/Event/update/${_event_id}` : `/Event/create/${_calendar_id}`;
+				const url = _event_id ? `/Event/update/${_event_id}` : `/Event/create/${Calendar.Id()}`;
 				const response = await _request(url,
 				{
 					method: 'POST',
@@ -455,7 +317,7 @@ function construct(lang,sources)
 				});
 				if (response === null)
 					return;
-				_showCalendar();
+				Calendar.Show();
 				dom.getModal('event').hide();
 			});
 			document.getElementById('deleteEventBtn').addEventListener('click', async function (event) {
@@ -555,9 +417,9 @@ function construct(lang,sources)
 				if (icsFileInput.files[0]) _icsSetFile(icsFileInput.files[0]);
 			});
 			doImportIcsBtn.addEventListener('click', async function () {
-				if (!_icsFile || _calendar_id === null) return;
+				if (!_icsFile || Calendar.Id() === null) return;
 				const text = await _icsFile.text();
-				const response = await _request(`/Event/ics/${_calendar_id}`, {
+				const response = await _request(`/Event/ics/${Calendar.Id()}`, {
 					method: 'PUT',
 					headers: { 'Content-Type': 'text/calendar' },
 					body: text
@@ -566,24 +428,24 @@ function construct(lang,sources)
 				const result = await response.json();
 				_icsReset();
 				dom.getModal('importIcs').hide();
-				_showCalendar();
+				Calendar.Show();
 				swal({ title: _('import_ics'), text: _('ics_import_success').replace('%d', result.imported), icon: 'success' });
 			});
 
 			GlobalACL.Init();
-			CalendarACL.Init(() => _calendar_id);
+			CalendarACL.Init(Calendar.Id);
 
 			// Alarms
 			_initAlarms();
 
-			_showCalendar();
+			Calendar.Show();
 			_checkConnection().then(connected => {
 				if (! connected)
 					_promptLogin();
 				else
 				{
 					_getUserInformations();
-					_refreshCalendarsList();
+					Calendar.Refresh();
 				}
 			});
 		});
@@ -607,7 +469,7 @@ function construct(lang,sources)
 		{
 			dom.getModal('login').hide();
 			_getUserInformations();
-			_refreshCalendarsList();
+			Calendar.Refresh();
 			return true;
 		}
 		const message = await response.json();
@@ -623,7 +485,6 @@ function construct(lang,sources)
 	{
 		const response = await fetch('/User/disconnect');
 		_globalsAuth = 0;
-		_calendarAuth = 0;
 		_user_infos = null;
 		_toggleButtons();
 		if (response.ok)

@@ -7,7 +7,7 @@ import { t as _ } from './core/i18n.js';
 let Id = () => null;
 
 // Access levels [value, label] ; rebuilt from translations on demand.
-function _levels()
+function Levels()
 {
 	return [
 		[0,_('no_access')],
@@ -18,7 +18,7 @@ function _levels()
 	];
 }
 
-function _selectElement({options, value, onchange})
+function SelectElement({options, value, onchange})
 {
 	return el({
 		tag: 'select',
@@ -104,8 +104,8 @@ async function Load()
 					{ tag: 'td', content: (acl.identifier === 'anonymous')?_('anonymous'):`${_('connected')} (${(acl.source === '')?_('all'):acl.source})`},
 					{
 						tag: 'td',
-						content: _selectElement({
-							options: _levels(),
+						content: SelectElement({
+							options: Levels(),
 							value: acl.authorization,
 							onchange: function (event) { Update(event) }
 						})
@@ -151,8 +151,8 @@ async function Load()
 				{ tag: 'td', content: _('type_' + acl.type)},
 				{
 					tag: 'td',
-					content: _selectElement({
-						options: _levels().slice(1),
+					content: SelectElement({
+						options: Levels().slice(1),
 						value: acl.authorization,
 						onchange: function (event) { Update(event) }
 					})

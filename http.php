@@ -91,6 +91,15 @@ class _
 		return ucfirst(self::_($key));
 	}
 
+	// Minimal template : replaces {{key}} placeholders with $vars values (single pass, no code).
+	public static function template(string $tpl, array $vars) : string
+	{
+		$map = [];
+		foreach ($vars as $key => $value)
+			$map['{{'.$key.'}}'] = (string) $value;
+		return strtr($tpl, $map);
+	}
+
 	public static function getPDO()
 	{
 		if (self::$pdo === null)
