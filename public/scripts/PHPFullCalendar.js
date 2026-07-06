@@ -9,6 +9,7 @@ import { initAlarms as _initAlarms, alarmWidgetLoad as _alarmWidgetLoad, hideAla
 import * as GlobalACL from './GlobalACL.js';
 import * as CalendarACL from './CalendarACL.js';
 import * as Calendar from './Calendar.js';
+import * as ICS from './ICS.js';
 
 let _calendar; // FullCalendar.js
 let _globalsAuth = 0; // connected user global authorizations
@@ -16,8 +17,6 @@ let _event_id = null; // clicked calendar event unique database id
 let _user_infos;
 let _sources = null;
 let _globalPermissions;
-let _icsFile = null;
-
 
 function _toggleButtons()
 {
@@ -72,27 +71,6 @@ function _utcToDateTimeLocal(str, offset = 0)
 	return local.toISOString().substring(0, 16);
 }
 
-
-function _icsSetFile(file)
-{
-	_icsFile = file;
-	icsDropZone.classList.add('has-file');
-	icsDropZone.classList.remove('drag-over');
-	icsFileName.textContent = file.name;
-	icsFileName.removeAttribute('data-hidden');
-	dom.enable('doImportIcsBtn',true);
-}
-	
-function _icsReset()
-{
-	_icsFile = null;
-	icsFileInput.value = '';
-	icsDropZone.classList.remove('has-file', 'drag-over');
-	icsFileName.setAttribute('data-hidden', 'true');
-	icsFileName.textContent = '';
-	dom.enable('doImportIcsBtn',false);
-}
-
 function _rruleBuild()
 {
 	const rruleUI = document.getElementById('rruleCollapse');
@@ -119,7 +97,7 @@ function _rruleSync(e)
 		document.querySelector('[name=rrule]').value = _rruleBuild();
 }
 
-	// constructeur
+// constructeur
 function construct(lang,sources)
 {
 	_sources = sources;
@@ -179,322 +157,289 @@ function construct(lang,sources)
 
 		Calendar.Init(() => _calendar, () => _globalsAuth);
 
-			// Events managment
-			const rruleCollapse = document.getElementById('rruleCollapse');
-			const rruleCollapseBtn = document.querySelector('[data-bs-target="#rruleCollapse"]');
-			const rruleActive = document.getElementById('rruleActive');
-			function _rruleHide() {
-				rruleCollapse.classList.remove('show');
-				rruleCollapseBtn.classList.add('collapsed');
-				rruleActive.value = '0';
-			}
-			_calendar.on('eventMouseEnter', function(info) {
-				const desc = info.event.extendedProps.description;
-				if (! desc) return;
-				const tooltip = document.getElementById('pfc-tooltip');
-				tooltip.textContent = desc;
-				tooltip.style.display = 'block';
-				info.el.addEventListener('mousemove', _moveTooltip);
+		// Events managment
+		_calendar.on('eventMouseEnter', function(info) {
+			const desc = info.event.extendedProps.description;
+			if (! desc) return;
+			const tooltip = document.getElementById('pfc-tooltip');
+			tooltip.textContent = desc;
+			tooltip.style.display = 'block';
+			info.el.addEventListener('mousemove', _moveTooltip);
+		});
+		_calendar.on('eventMouseLeave', function(info) {
+			document.getElementById('pfc-tooltip').style.display = 'none';
+			info.el.removeEventListener('mousemove', _moveTooltip);
+		});
+		_calendar.on('dateClick', function(info) {
+			_event_id = null;
+			const form = document.getElementById('eventForm');
+			form.reset();
+			_rruleHide();
+			document.getElementById('rruleExpertSection').style.display = 'none';
+			form.querySelector('input[name=start]').value = _toDateTimeLocal(info.dateStr);
+			form.querySelector('input[name=end]').value = _toDateTimeLocal(info.dateStr);
+			document.getElementById('eventModalTitle').textContent = _('new_event');
+			document.getElementById('deleteEventBtn').disabled = true;
+			_hideAlarmWidget('event');
+			_eventCalendarAlarmsLoad(Calendar.Id());
+			dom.getModal('event').show();
+		});
+		_calendar.on('eventClick', async function(info) {
+			info.jsEvent.preventDefault();
+			_event_id = info.event.id;
+			const response = await _request(`/Event/read/${_event_id}`);
+			if (response === null)
+				return;
+			const data = await response.json();
+//			console.log(data);
+			const form = document.getElementById('eventForm');
+			form.reset();
+			document.getElementById('rruleExpertSection').style.display = 'none';
+			form.querySelectorAll('[name]').forEach((field) => {
+				if (data[field.name] === undefined) return;
+				field.value = (field.name === 'start' || field.name === 'end') ? _utcToDateTimeLocal(data[field.name]) : data[field.name];
 			});
-			_calendar.on('eventMouseLeave', function(info) {
-				document.getElementById('pfc-tooltip').style.display = 'none';
-				info.el.removeEventListener('mousemove', _moveTooltip);
-			});
-			_calendar.on('dateClick', function(info) {
-				_event_id = null;
-				const form = document.getElementById('eventForm');
-				form.reset();
-				_rruleHide();
-				document.getElementById('rruleExpertSection').style.display = 'none';
-				form.querySelector('input[name=start]').value = _toDateTimeLocal(info.dateStr);
-				form.querySelector('input[name=end]').value = _toDateTimeLocal(info.dateStr);
-				document.getElementById('eventModalTitle').textContent = _('new_event');
-				document.getElementById('deleteEventBtn').disabled = true;
-				_hideAlarmWidget('event');
-				_eventCalendarAlarmsLoad(Calendar.Id());
-				dom.getModal('event').show();
-			});
-			_calendar.on('eventClick', async function(info) {
-				info.jsEvent.preventDefault();
-				_event_id = info.event.id;
-				const response = await _request(`/Event/read/${_event_id}`);
-				if (response === null)
-					return;
-				const data = await response.json();
-//				console.log(data);
-				const form = document.getElementById('eventForm');
-				form.reset();
-				document.getElementById('rruleExpertSection').style.display = 'none';
-				form.querySelectorAll('[name]').forEach((field) => {
-					if (data[field.name] === undefined) return;
-					field.value = (field.name === 'start' || field.name === 'end') ? _utcToDateTimeLocal(data[field.name]) : data[field.name];
-				});
-				if (data.rrule) {
-					const freqNumMap = {0: 'yearly', 1: 'monthly', 2: 'weekly', 3: 'daily'};
-					let freq = 'daily', interval = 1, until = '', count = 0;
-					if (_RRule) {
-						try {
-							const opts = _RRule.parseString(data.rrule);
-							freq = freqNumMap[opts.freq] ?? 'daily';
-							interval = opts.interval ?? 1;
-							if (opts.until) until = opts.until.toISOString().substring(0, 10);
-							if (opts.count) count = opts.count;
-						} catch (e) {}
-					} else {
-						const mFreq = data.rrule.match(/FREQ=(\w+)/);
-						const mInt = data.rrule.match(/INTERVAL=(\d+)/);
-						const mUntil = data.rrule.match(/UNTIL=(\d{8})/);
-						const mCount = data.rrule.match(/COUNT=(\d+)/);
-						if (mFreq) freq = mFreq[1].toLowerCase();
-						if (mInt) interval = parseInt(mInt[1]);
-						if (mUntil) { const s = mUntil[1]; until = `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`; }
-						if (mCount) count = parseInt(mCount[1]);
-					}
-					const freqRadio = form.querySelector(`[name=rrule_freq][value=${freq}]`);
-					if (freqRadio) freqRadio.checked = true;
-					_rruleShowFreqSection(freq);
-					form.querySelector('[name=rrule_interval]').value = interval;
-					if (count >= 2) {
-						form.querySelector('[name=rrule_end][value=count]').checked = true;
-						form.querySelector('[name=rrule_count]').value = count;
-					} else if (until) {
-						form.querySelector('[name=rrule_end][value=until]').checked = true;
-						form.querySelector('[name=rrule_until]').value = until;
-					}
-					bootstrap.Collapse.getOrCreateInstance(rruleCollapse).show();
+			if (data.rrule) {
+				const freqNumMap = {0: 'yearly', 1: 'monthly', 2: 'weekly', 3: 'daily'};
+				let freq = 'daily', interval = 1, until = '', count = 0;
+				if (_RRule) {
+					try {
+						const opts = _RRule.parseString(data.rrule);
+						freq = freqNumMap[opts.freq] ?? 'daily';
+						interval = opts.interval ?? 1;
+						if (opts.until) until = opts.until.toISOString().substring(0, 10);
+						if (opts.count) count = opts.count;
+					} catch (e) {}
+				} else {
+					const mFreq = data.rrule.match(/FREQ=(\w+)/);
+					const mInt = data.rrule.match(/INTERVAL=(\d+)/);
+					const mUntil = data.rrule.match(/UNTIL=(\d{8})/);
+					const mCount = data.rrule.match(/COUNT=(\d+)/);
+					if (mFreq) freq = mFreq[1].toLowerCase();
+					if (mInt) interval = parseInt(mInt[1]);
+					if (mUntil) { const s = mUntil[1]; until = `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`; }
+					if (mCount) count = parseInt(mCount[1]);
 				}
-				else
-					_rruleHide();
-				document.getElementById('eventModalTitle').textContent = _('edit_event');
-				document.getElementById('deleteEventBtn').disabled = (Calendar.Auth() < 3);
-				await _alarmWidgetLoad('event', _event_id, Calendar.Auth() >= 3);
-				_eventCalendarAlarmsLoad(Calendar.Id());
-				dom.getModal('event').show();
-			});
-			document.getElementById('addEventBtn').addEventListener('click', function () {
-				_event_id = null;
-				document.getElementById('eventForm').reset();
+				const freqRadio = form.querySelector(`[name=rrule_freq][value=${freq}]`);
+				if (freqRadio) freqRadio.checked = true;
+				_rruleShowFreqSection(freq);
+				form.querySelector('[name=rrule_interval]').value = interval;
+				if (count >= 2) {
+					form.querySelector('[name=rrule_end][value=count]').checked = true;
+					form.querySelector('[name=rrule_count]').value = count;
+				} else if (until) {
+					form.querySelector('[name=rrule_end][value=until]').checked = true;
+					form.querySelector('[name=rrule_until]').value = until;
+				}
+				bootstrap.Collapse.getOrCreateInstance(rruleCollapse).show();
+			}
+			else
 				_rruleHide();
-				document.getElementById('rruleExpertSection').style.display = 'none';
-				dom.enable('deleteEventBtn',false);
-				_hideAlarmWidget('event');
-				_eventCalendarAlarmsLoad(Calendar.Id());
-				dom.getModal('event').show();
+			document.getElementById('eventModalTitle').textContent = _('edit_event');
+			document.getElementById('deleteEventBtn').disabled = (Calendar.Auth() < 3);
+			await _alarmWidgetLoad('event', _event_id, Calendar.Auth() >= 3);
+			_eventCalendarAlarmsLoad(Calendar.Id());
+			dom.getModal('event').show();
+		});
+		document.getElementById('addEventBtn').addEventListener('click', function () {
+			_event_id = null;
+			document.getElementById('eventForm').reset();
+			_rruleHide();
+			document.getElementById('rruleExpertSection').style.display = 'none';
+			dom.enable('deleteEventBtn',false);
+			_hideAlarmWidget('event');
+			_eventCalendarAlarmsLoad(Calendar.Id());
+			dom.getModal('event').show();
+		});
+		document.getElementById('copyStartToEndBtn').addEventListener('click', function () {
+			const form = document.getElementById('eventForm');
+//			console.log(form.querySelector('input[name=start]').value);
+//			form.querySelector('input[name=end]').value = _toDateTimeLocal(form.querySelector('input[name=start]').value);
+			form.querySelector('input[name=end]').value = form.querySelector('input[name=start]').value;
+		});
+		document.getElementById('addOneHourBtn').addEventListener('click', function () {
+			const input = document.getElementById('eventForm').querySelector('input[name=end]');
+			if (! input.value)
+				return;
+			input.value = _utcToDateTimeLocal(input.value,3600);
+		});
+		document.getElementById('addThirtyMinBtn').addEventListener('click', function () {
+			const input = document.getElementById('eventForm').querySelector('input[name=end]');
+			if (! input.value)
+				return;
+			input.value = _utcToDateTimeLocal(input.value,1800);
+		});
+		document.getElementById('saveEventBtn').addEventListener('click', async function (event) {
+			const data = {};
+			document.getElementById('eventForm').querySelectorAll('[name]').forEach(field => {
+				if (field.value && (field.name === 'start' || field.name === 'end'))
+					data[field.name] = new Date(field.value).toISOString();
+				else
+					data[field.name] = field.value;
 			});
-			document.getElementById('copyStartToEndBtn').addEventListener('click', function () {
-				const form = document.getElementById('eventForm');
-//				console.log(form.querySelector('input[name=start]').value);
-//				form.querySelector('input[name=end]').value = _toDateTimeLocal(form.querySelector('input[name=start]').value);
-				form.querySelector('input[name=end]').value = form.querySelector('input[name=start]').value;
-			});
-			document.getElementById('addOneHourBtn').addEventListener('click', function () {
-				const input = document.getElementById('eventForm').querySelector('input[name=end]');
-				if (! input.value)
-					return;
-				input.value = _utcToDateTimeLocal(input.value,3600);
-			});
-			document.getElementById('addThirtyMinBtn').addEventListener('click', function () {
-				const input = document.getElementById('eventForm').querySelector('input[name=end]');
-				if (! input.value)
-					return;
-				input.value = _utcToDateTimeLocal(input.value,1800);
-			});
-			document.getElementById('saveEventBtn').addEventListener('click', async function (event) {
-				const data = {};
-				document.getElementById('eventForm').querySelectorAll('[name]').forEach(field => {
-					if (field.value && (field.name === 'start' || field.name === 'end'))
-						data[field.name] = new Date(field.value).toISOString();
-					else
-						data[field.name] = field.value;
-				});
-//				console.log(data);
-				const url = _event_id ? `/Event/update/${_event_id}` : `/Event/create/${Calendar.Id()}`;
-				const response = await _request(url,
-				{
-					method: 'POST',
-					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-					body: new URLSearchParams(data)
-				});
-				if (response === null)
-					return;
-				Calendar.Show();
-				dom.getModal('event').hide();
-			});
-			document.getElementById('deleteEventBtn').addEventListener('click', async function (event) {
-				if (! _event_id) return;
-				const confirmed = await swal({
-					title: _('confirm_delete_event'),
-					icon: 'warning',
-					buttons: [_('cancel'), _('delete')],
-					dangerMode: true
-				});
-				if (! confirmed) return;
-				const response = await _request(`/Event/delete/${_event_id}`);
-				if (response === null)
-					return;
-				const ev = _calendar.getEventById(_event_id);
-				if (ev) ev.remove();
-				dom.getModal('event').hide();
-			});
-
-			// Recurrence form
-
-			rruleCollapse.addEventListener('show.bs.collapse', () => rruleActive.value = '1');
-			rruleCollapse.addEventListener('hide.bs.collapse', () => rruleActive.value = '0');
-			rruleCollapse.addEventListener('change', _rruleSync);
-			rruleCollapse.addEventListener('input', _rruleSync);
-
-			const _RRule = window.RRule
-				?? window.rrule?.RRule
-				?? window.FullCalendarRRule?.RRule;
-
-			const rrulePreviewBtn = document.getElementById('rrulePreviewBtn');
-			const rrulePreviewDiv = document.createElement('div');
-			rrulePreviewDiv.id = 'rrulePreview';
-			document.body.appendChild(rrulePreviewDiv);
-
-			rrulePreviewBtn.addEventListener('mouseenter', function () {
-				if (!_RRule) return;
-				const rruleStr = _rruleBuild();
-				if (!rruleStr) return;
-				const startVal = document.querySelector('[name=start]').value;
-				const dtstart = startVal ? new Date(startVal) : new Date();
-				let dates;
-				try {
-					const opts = _RRule.parseString(rruleStr);
-					opts.dtstart = dtstart;
-					dates = new _RRule(opts).all((d, i) => i < 11);
-				} catch (err) { return; }
-				if (!dates || !dates.length) return;
-				rrulePreviewDiv.textContent = dates
-					.map(d => d.toLocaleDateString(lang, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }))
-					.join('\n');
-				const r = rrulePreviewBtn.getBoundingClientRect();
-				rrulePreviewDiv.style.left = (r.right + 10) + 'px';
-				rrulePreviewDiv.style.top = r.top + 'px';
-				rrulePreviewDiv.style.display = 'block';
-			});
-			rrulePreviewBtn.addEventListener('mouseleave', () => rrulePreviewDiv.style.display = 'none');
-
-			const _rruleFreqSections = {
-				daily: document.getElementById('eventsDaily'),
-				weekly: document.getElementById('eventsWeekly'),
-				monthly: document.getElementById('eventsMonthly'),
-				yearly: document.getElementById('eventsYearly'),
-			};
-
-			function _rruleShowFreqSection(freq)
+//			console.log(data);
+			const url = _event_id ? `/Event/update/${_event_id}` : `/Event/create/${Calendar.Id()}`;
+			const response = await _request(url,
 			{
-				for (const [key, el] of Object.entries(_rruleFreqSections))
-					el.style.display = (key === freq) ? 'block' : 'none';
-			}
-
-			document.querySelectorAll('[name=rrule_freq]').forEach(radio => {
-				radio.addEventListener('change', () => { if (radio.checked) _rruleShowFreqSection(radio.value); });
+				method: 'POST',
+				headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+				body: new URLSearchParams(data)
 			});
-
-			const rruleExpertCheck = document.getElementById('rruleExpertCheck');
-			const rruleExpertSection = document.getElementById('rruleExpertSection');
-			rruleExpertCheck.addEventListener('change', () => {
-				rruleExpertSection.style.display = rruleExpertCheck.checked ? 'block' : 'none';
-			});
-
-			// ICS import
-
-			const icsDropZone = document.getElementById('icsDropZone');
-			const icsFileInput = document.getElementById('icsFileInput');
-			const icsFileName = document.getElementById('icsFileName');
-
-			icsDropZone.addEventListener('click', () => icsFileInput.click());
-			icsDropZone.addEventListener('dragover', e => { e.preventDefault(); icsDropZone.classList.add('drag-over'); });
-			icsDropZone.addEventListener('dragleave', () => icsDropZone.classList.remove('drag-over'));
-			icsDropZone.addEventListener('drop', e => {
-				e.preventDefault();
-				const file = e.dataTransfer.files[0];
-				if (file) _icsSetFile(file);
-			});
-			icsFileInput.addEventListener('change', () => {
-				if (icsFileInput.files[0]) _icsSetFile(icsFileInput.files[0]);
-			});
-			doImportIcsBtn.addEventListener('click', async function () {
-				if (!_icsFile || Calendar.Id() === null) return;
-				const text = await _icsFile.text();
-				const response = await _request(`/Event/ics/${Calendar.Id()}`, {
-					method: 'PUT',
-					headers: { 'Content-Type': 'text/calendar' },
-					body: text
-				});
-				if (response === null) return;
-				const result = await response.json();
-				_icsReset();
-				dom.getModal('importIcs').hide();
-				Calendar.Show();
-				swal({ title: _('import_ics'), text: _('ics_import_success').replace('%d', result.imported), icon: 'success' });
-			});
-
-			GlobalACL.Init();
-			CalendarACL.Init(Calendar.Id);
-
-			// Alarms
-			_initAlarms();
-
+			if (response === null)
+				return;
 			Calendar.Show();
-			_checkConnection().then(connected => {
-				if (! connected)
-					_promptLogin();
-				else
-				{
-					_getUserInformations();
-					Calendar.Refresh();
-				}
+			dom.getModal('event').hide();
+		});
+		document.getElementById('deleteEventBtn').addEventListener('click', async function (event) {
+			if (! _event_id) return;
+			const confirmed = await swal({
+				title: _('confirm_delete_event'),
+				icon: 'warning',
+				buttons: [_('cancel'), _('delete')],
+				dangerMode: true
 			});
+			if (! confirmed) return;
+			const response = await _request(`/Event/delete/${_event_id}`);
+			if (response === null)
+				return;
+			const ev = _calendar.getEventById(_event_id);
+			if (ev) ev.remove();
+			dom.getModal('event').hide();
 		});
-	}
 
-	construct.prototype.connect = async function()
-	{
-		_resetAskForLogin();
-		const source = document.getElementById('loginSource').value;
-		const user_id = document.getElementById('loginUserId').value;
-		const password = document.getElementById('loginPassword').value;
-		_loadingShow();
-		const response = await fetch('/Authenticate/connect',
-		{
-			method: 'POST',
-			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-			body: new URLSearchParams({ source, user_id, password })
-		});
-		_loadingHide();
-		if (response.ok)
-		{
-			dom.getModal('login').hide();
-			_getUserInformations();
-			Calendar.Refresh();
-			return true;
+		// Recurrence form
+
+		const rruleCollapse = document.getElementById('rruleCollapse');
+		const rruleCollapseBtn = document.querySelector('[data-bs-target="#rruleCollapse"]');
+		const rruleActive = document.getElementById('rruleActive');
+		function _rruleHide() {
+			rruleCollapse.classList.remove('show');
+			rruleCollapseBtn.classList.add('collapsed');
+			rruleActive.value = '0';
 		}
-		const message = await response.json();
-		swal({
-			title: _('auth_failed'),
-			text: message,
-			icon: "error"
-		})
-		return false;
-	}
+		rruleCollapse.addEventListener('show.bs.collapse', () => rruleActive.value = '1');
+		rruleCollapse.addEventListener('hide.bs.collapse', () => rruleActive.value = '0');
+		rruleCollapse.addEventListener('change', _rruleSync);
+		rruleCollapse.addEventListener('input', _rruleSync);
 
-	construct.prototype.disconnect = async function()
+		const _RRule = window.RRule
+			?? window.rrule?.RRule
+			?? window.FullCalendarRRule?.RRule;
+
+		const rrulePreviewBtn = document.getElementById('rrulePreviewBtn');
+		const rrulePreviewDiv = document.createElement('div');
+		rrulePreviewDiv.id = 'rrulePreview';
+		document.body.appendChild(rrulePreviewDiv);
+
+		rrulePreviewBtn.addEventListener('mouseenter', function () {
+			if (!_RRule) return;
+			const rruleStr = _rruleBuild();
+			if (!rruleStr) return;
+			const startVal = document.querySelector('[name=start]').value;
+			const dtstart = startVal ? new Date(startVal) : new Date();
+			let dates;
+			try {
+				const opts = _RRule.parseString(rruleStr);
+				opts.dtstart = dtstart;
+				dates = new _RRule(opts).all((d, i) => i < 11);
+			} catch (err) { return; }
+			if (!dates || !dates.length) return;
+			rrulePreviewDiv.textContent = dates
+				.map(d => d.toLocaleDateString(lang, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }))
+				.join('\n');
+			const r = rrulePreviewBtn.getBoundingClientRect();
+			rrulePreviewDiv.style.left = (r.right + 10) + 'px';
+			rrulePreviewDiv.style.top = r.top + 'px';
+			rrulePreviewDiv.style.display = 'block';
+		});
+		rrulePreviewBtn.addEventListener('mouseleave', () => rrulePreviewDiv.style.display = 'none');
+
+		const _rruleFreqSections = {
+			daily: document.getElementById('eventsDaily'),
+			weekly: document.getElementById('eventsWeekly'),
+			monthly: document.getElementById('eventsMonthly'),
+			yearly: document.getElementById('eventsYearly'),
+		};
+
+		function _rruleShowFreqSection(freq)
+		{
+			for (const [key, el] of Object.entries(_rruleFreqSections))
+				el.style.display = (key === freq) ? 'block' : 'none';
+		}
+
+		document.querySelectorAll('[name=rrule_freq]').forEach(radio => {
+			radio.addEventListener('change', () => { if (radio.checked) _rruleShowFreqSection(radio.value); });
+		});
+
+		const rruleExpertCheck = document.getElementById('rruleExpertCheck');
+		const rruleExpertSection = document.getElementById('rruleExpertSection');
+		rruleExpertCheck.addEventListener('change', () => {
+			rruleExpertSection.style.display = rruleExpertCheck.checked ? 'block' : 'none';
+		});
+
+		ICS.Init();
+		GlobalACL.Init();
+		CalendarACL.Init(Calendar.Id);
+
+		_initAlarms();
+
+		Calendar.Show();
+		_checkConnection().then(connected => {
+			if (! connected)
+				_promptLogin();
+			else
+			{
+				_getUserInformations();
+				Calendar.Refresh();
+			}
+		});
+	});
+}
+
+construct.prototype.connect = async function()
+{
+	_resetAskForLogin();
+	const source = document.getElementById('loginSource').value;
+	const user_id = document.getElementById('loginUserId').value;
+	const password = document.getElementById('loginPassword').value;
+	_loadingShow();
+	const response = await fetch('/Authenticate/connect',
 	{
-		const response = await fetch('/User/disconnect');
-		_globalsAuth = 0;
-		_user_infos = null;
-		_toggleButtons();
-		if (response.ok)
-			location.reload();
-		else
-			swal({
-				title: _('internal_error'),
-				icon: "error"
-			});
+		method: 'POST',
+		headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+		body: new URLSearchParams({ source, user_id, password })
+	});
+	_loadingHide();
+	if (response.ok)
+	{
+		dom.getModal('login').hide();
+		_getUserInformations();
+		Calendar.Refresh();
+		return true;
 	}
+	const message = await response.json();
+	swal({
+		title: _('auth_failed'),
+		text: message,
+		icon: "error"
+	})
+	return false;
+}
+
+construct.prototype.disconnect = async function()
+{
+	const response = await fetch('/User/disconnect');
+	_globalsAuth = 0;
+	_user_infos = null;
+	_toggleButtons();
+	if (response.ok)
+		location.reload();
+	else
+		swal({
+			title: _('internal_error'),
+			icon: "error"
+		});
+}
 
 // Bootstrap : config (lang + auth sources) is provided by index.php as JSON.
 const _config = JSON.parse(document.getElementById('pfc-config').textContent);
