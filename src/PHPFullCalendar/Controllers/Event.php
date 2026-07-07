@@ -41,16 +41,6 @@ class Event extends ControllerAbstract
 		'description' => ['/^.{0,65535}$/s', 'description_too_long'],
 	];
 
-	protected function _control(array $raw_data): string|null
-	{
-		foreach (self::$validation as $key => $rules)
-		{
-			if (!preg_match($rules[0], $raw_data[$key] ?? ""))
-				return $rules[1];
-		}
-		return null;
-	}
-
 	protected static function _get_start_and_duration(string $start, string $end) : array
 	{
 		$start_ts = floor((new DateTimeImmutable($start))->getTimestamp() / 60);

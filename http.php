@@ -258,6 +258,11 @@ class _
 		// get authorization data when no session access
 		if (self::$noSession)
 		{
+			if ($verb !== 'GET' && $verb !== 'HEAD')
+			{
+				header('HTTP/1.1 403 Forbidden');
+				return;
+			}
 			$user_id = null;
 			if (isset($_SERVER['PHP_AUTH_USER']))
 				[$user_id,$password] = [$_SERVER['PHP_AUTH_USER'], $_SERVER['PHP_AUTH_PW'] ?? ''];

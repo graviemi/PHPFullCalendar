@@ -13,6 +13,11 @@ use PHPFullCalendar\_,
 
 class Recipient extends ControllerAbstract
 {
+	protected static array $validation = [
+		'address' => ['/^.{1,255}$/', 'wrong_email_address'],
+		'name' => ['/^.{0,255}$/', 'wrong_value'],
+	];
+
 	private function _checkAlarmRight() : ViewInterface|null
 	{
 		$acl = new ACL(_::getPDO());
@@ -52,6 +57,8 @@ class Recipient extends ControllerAbstract
 	{
 		if (($denied = $this->_checkAlarmRight()) !== null)
 			return $denied;
+		if (($message = $this->_control($_POST)) !== null)
+			return new BadRequest(_::_($message));
 		$data = self::_data();
 		if (! filter_var($data['address'], FILTER_VALIDATE_EMAIL))
 			return new BadRequest(_::_('wrong_email_address'));
@@ -67,6 +74,8 @@ class Recipient extends ControllerAbstract
 		$db = new AlarmDB(_::getPDO());
 		if ($db->getRecipient((int) $matches[1]) === false)
 			return new NotFound();
+		if (($message = $this->_control($_POST)) !== null)
+			return new BadRequest(_::_($message));
 		$data = self::_data();
 		if (! filter_var($data['address'], FILTER_VALIDATE_EMAIL))
 			return new BadRequest(_::_('wrong_email_address'));

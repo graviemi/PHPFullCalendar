@@ -13,6 +13,12 @@ use PHPFullCalendar\_,
 
 class Email extends ControllerAbstract
 {
+	protected static array $validation = [
+		'label' => ['/^.{1,255}$/', 'label_required'],
+		'summary' => ['/^.{1,255}$/', 'wrong_summary'],
+		'description_id' => ['/^\d+$/', 'wrong_identifier'],
+	];
+
 	private function _checkAlarmRight() : ViewInterface|null
 	{
 		$acl = new ACL(_::getPDO());
@@ -35,6 +41,16 @@ class Email extends ControllerAbstract
 	{
 		$recipients = $_POST['recipients'] ?? [];
 		return array_map('intval', is_array($recipients) ? $recipients : [$recipients]);
+	}
+
+	private function _checkReferences(AlarmDB $db, array $data) : ViewInterface|null
+	{
+		if ($db->getDescription($data['description_id']) === false)
+			return new BadRequest(_::_('wrong_identifier'));
+		foreach (self::_recipientIds() as $recipient_id)
+			if ($db->getRecipient($recipient_id) === false)
+				return new BadRequest(_::_('wrong_identifier'));
+		return null;
 	}
 
 	protected function _get_list()
@@ -62,10 +78,14 @@ class Email extends ControllerAbstract
 	{
 		if (($denied = $this->_checkAlarmRight()) !== null)
 			return $denied;
+		if (($message = $this->_control($_POST)) !== null)
+			return new BadRequest(_::_($message));
 		if (($data = self::_data()) === null)
 			return new BadRequest(_::_('email_fields_required'));
 		$pdo = _::getPDO();
 		$db = new AlarmDB($pdo);
+		if (($invalid = $this->_checkReferences($db, $data)) !== null)
+			return $invalid;
 		$pdo->beginTransaction();
 		try
 		{
@@ -93,8 +113,12 @@ class Email extends ControllerAbstract
 		$db = new AlarmDB($pdo);
 		if ($db->getEmail($email_id) === false)
 			return new NotFound();
+		if (($message = $this->_control($_POST)) !== null)
+			return new BadRequest(_::_($message));
 		if (($data = self::_data()) === null)
 			return new BadRequest(_::_('email_fields_required'));
+		if (($invalid = $this->_checkReferences($db, $data)) !== null)
+			return $invalid;
 		$pdo->beginTransaction();
 		try
 		{

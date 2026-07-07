@@ -13,6 +13,11 @@ use PHPFullCalendar\_,
 
 class Display extends ControllerAbstract
 {
+	protected static array $validation = [
+		'label' => ['/^.{1,255}$/', 'label_required'],
+		'description_id' => ['/^\d+$/', 'wrong_identifier'],
+	];
+
 	private function _checkAlarmRight() : ViewInterface|null
 	{
 		$acl = new ACL(_::getPDO());
@@ -53,9 +58,14 @@ class Display extends ControllerAbstract
 	{
 		if (($denied = $this->_checkAlarmRight()) !== null)
 			return $denied;
+		if (($message = $this->_control($_POST)) !== null)
+			return new BadRequest(_::_($message));
 		if (($data = self::_data()) === null)
 			return new BadRequest(_::_('label_and_description_required'));
-		return new Json((new AlarmDB(_::getPDO()))->createDisplay($data));
+		$db = new AlarmDB(_::getPDO());
+		if ($db->getDescription($data['description_id']) === false)
+			return new BadRequest(_::_('wrong_identifier'));
+		return new Json($db->createDisplay($data));
 	}
 
 	protected function _post_update()
@@ -67,8 +77,12 @@ class Display extends ControllerAbstract
 		$db = new AlarmDB(_::getPDO());
 		if ($db->getDisplay((int) $matches[1]) === false)
 			return new NotFound();
+		if (($message = $this->_control($_POST)) !== null)
+			return new BadRequest(_::_($message));
 		if (($data = self::_data()) === null)
 			return new BadRequest(_::_('label_and_description_required'));
+		if ($db->getDescription($data['description_id']) === false)
+			return new BadRequest(_::_('wrong_identifier'));
 		$db->updateDisplay((int) $matches[1], $data);
 		return new Ok();
 	}

@@ -14,9 +14,29 @@ use PHPFullCalendar\_,
 
 class Alarm extends ControllerAbstract
 {
-	// -------------------------------------------------------------------------
-	// Helpers
-	// -------------------------------------------------------------------------
+	protected static array $validation = [
+		'label' => ['/^.{1,255}$/', 'title_required'],
+		'trigger_value' => ['/^\d*$/', 'wrong_value'],
+		'trigger_unit' => ['/^[MHDW]?$/', 'wrong_value'],
+		'trigger_sign' => ['/^[-+]?$/', 'wrong_value'],
+		'related' => ['/^(start|end)?$/', 'wrong_value'],
+		'repeat' => ['/^\d*$/', 'wrong_value'],
+		'duration_value' => ['/^([1-9]\d*)?$/', 'wrong_value'],
+		'duration_unit' => ['/^[MHDW]?$/', 'wrong_value'],
+		'display_id' => ['/^\d*$/', 'wrong_identifier'],
+		'email_id' => ['/^\d*$/', 'wrong_identifier'],
+		'audio_id' => ['/^\d*$/', 'wrong_identifier'],
+		'display_description_id' => ['/^\d*$/', 'wrong_identifier'],
+		'email_description_id' => ['/^\d*$/', 'wrong_identifier'],
+		'display_label' => ['/^.{0,255}$/', 'wrong_label'],
+		'email_label' => ['/^.{0,255}$/', 'wrong_label'],
+		'audio_label' => ['/^.{0,255}$/', 'wrong_label'],
+		'display_description_label' => ['/^.{0,255}$/', 'wrong_label'],
+		'email_description_label' => ['/^.{0,255}$/', 'wrong_label'],
+		'email_summary' => ['/^.{0,255}$/', 'wrong_summary'],
+		'display_description' => ['/^.{0,65535}$/s', 'description_too_long'],
+		'email_description' => ['/^.{0,65535}$/s', 'description_too_long'],
+	];
 
 	private function _checkAlarmRight() : ViewInterface|null
 	{
@@ -36,7 +56,6 @@ class Alarm extends ControllerAbstract
 		};
 	}
 
-	// Build the alarm row values from the submitted form
 	private static function _alarmData() : array
 	{
 		$trigger = self::_duration((int) ($_POST['trigger_value'] ?? 15), $_POST['trigger_unit'] ?? 'M');
@@ -73,11 +92,6 @@ class Alarm extends ControllerAbstract
 		];
 	}
 
-	// Resolve a reusable component from the form: an existing id is used as-is,
-	// otherwise a new row is created from the submitted label/fields. Returns null
-	// when neither an id nor enough data to create one is provided.
-
-	// description for a display/email, prefixed by 'display' or 'email'
 	private function _resolveDescription(AlarmDB $db, string $prefix) : int|null
 	{
 		if (($id = trim($_POST[$prefix.'_description_id'] ?? '')) !== '')
@@ -128,9 +142,26 @@ class Alarm extends ControllerAbstract
 		return $db->createAudio($audio);
 	}
 
-	// -------------------------------------------------------------------------
-	// Definitions CRUD (GR_ALARM)
-	// -------------------------------------------------------------------------
+	private function _checkReferences(AlarmDB $db) : ViewInterface|null
+	{
+		$references = [
+			'display_id' => 'getDisplay',
+			'email_id' => 'getEmail',
+			'audio_id' => 'getAudio',
+			'display_description_id' => 'getDescription',
+			'email_description_id' => 'getDescription',
+		];
+		foreach ($references as $field => $getter)
+		{
+			$id = trim($_POST[$field] ?? '');
+			if ($id !== '' && $db->$getter((int) $id) === false)
+				return new BadRequest(_::_('wrong_identifier'));
+		}
+		foreach (self::_recipientIds() as $recipient_id)
+			if ($db->getRecipient($recipient_id) === false)
+				return new BadRequest(_::_('wrong_identifier'));
+		return null;
+	}
 
 	protected function _get_list()
 	{
@@ -180,11 +211,17 @@ class Alarm extends ControllerAbstract
 	{
 		if (($denied = $this->_checkAlarmRight()) !== null)
 			return $denied;
+		if (($message = $this->_control($_POST)) !== null)
+			return new BadRequest(_::_($message));
 		$data = self::_alarmData();
 		if ($data['label'] === '')
 			return new BadRequest(_::_('title_required'));
+		if (($message = Sound::checkSound()) !== null)
+			return new BadRequest(_::_($message));
 		$pdo = _::getPDO();
 		$db = new AlarmDB($pdo);
+		if (($invalid = $this->_checkReferences($db)) !== null)
+			return $invalid;
 		$pdo->beginTransaction();
 		try
 		{
@@ -218,9 +255,15 @@ class Alarm extends ControllerAbstract
 		$db = new AlarmDB($pdo);
 		if ($db->getAlarm($alarm_id) === false)
 			return new NotFound();
+		if (($message = $this->_control($_POST)) !== null)
+			return new BadRequest(_::_($message));
 		$data = self::_alarmData();
 		if ($data['label'] === '')
 			return new BadRequest(_::_('title_required'));
+		if (($message = Sound::checkSound()) !== null)
+			return new BadRequest(_::_($message));
+		if (($invalid = $this->_checkReferences($db)) !== null)
+			return $invalid;
 		$pdo->beginTransaction();
 		try
 		{
@@ -254,15 +297,9 @@ class Alarm extends ControllerAbstract
 		$db = new AlarmDB(_::getPDO());
 		if ($db->getAlarm($alarm_id) === false)
 			return new NotFound();
-		// components (display/email/audio) are independent and kept ;
-		// calendarAlarm/eventAlarm rows cascade on the alarm deletion
 		$db->deleteAlarm($alarm_id);
 		return new Ok();
 	}
-
-	// -------------------------------------------------------------------------
-	// Calendar attachments
-	// -------------------------------------------------------------------------
 
 	protected function _get_forCalendar()
 	{
@@ -285,6 +322,8 @@ class Alarm extends ControllerAbstract
 		if ($acl->getCalendarAuthorization($calendar_id, _::getUserData()) < ACL::CAL_ACL)
 			return _::denyAccess();
 		$db = new AlarmDB(_::getPDO());
+		if ($db->getAlarm((int) $matches[2]) === false)
+			return new NotFound();
 		$db->attachToCalendar($calendar_id, (int) $matches[2]);
 		return new Ok();
 	}
@@ -301,10 +340,6 @@ class Alarm extends ControllerAbstract
 		$db->detachFromCalendar($calendar_id, (int) $matches[2]);
 		return new Ok();
 	}
-
-	// -------------------------------------------------------------------------
-	// Event attachments
-	// -------------------------------------------------------------------------
 
 	protected function _get_forEvent()
 	{
@@ -333,6 +368,8 @@ class Alarm extends ControllerAbstract
 		if ($acl->getCalendarAuthorization((int) $event['calendar_id'], _::getUserData()) < ACL::CAL_WRITE)
 			return _::denyAccess();
 		$db = new AlarmDB(_::getPDO());
+		if ($db->getAlarm((int) $matches[2]) === false)
+			return new NotFound();
 		$db->attachToEvent($event_id, (int) $matches[2]);
 		return new Ok();
 	}

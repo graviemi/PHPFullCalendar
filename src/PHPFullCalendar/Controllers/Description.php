@@ -13,6 +13,11 @@ use PHPFullCalendar\_,
 
 class Description extends ControllerAbstract
 {
+	protected static array $validation = [
+		'label' => ['/^.{1,255}$/', 'label_required'],
+		'contents' => ['/^.{1,65535}$/s', 'label_and_contents_required'],
+	];
+
 	private function _checkAlarmRight() : ViewInterface|null
 	{
 		$acl = new ACL(_::getPDO());
@@ -52,6 +57,8 @@ class Description extends ControllerAbstract
 	{
 		if (($denied = $this->_checkAlarmRight()) !== null)
 			return $denied;
+		if (($message = $this->_control($_POST)) !== null)
+			return new BadRequest(_::_($message));
 		$data = self::_data();
 		if ($data['label'] === '' || $data['contents'] === '')
 			return new BadRequest(_::_('label_and_contents_required'));
@@ -67,6 +74,8 @@ class Description extends ControllerAbstract
 		$db = new AlarmDB(_::getPDO());
 		if ($db->getDescription((int) $matches[1]) === false)
 			return new NotFound();
+		if (($message = $this->_control($_POST)) !== null)
+			return new BadRequest(_::_($message));
 		$data = self::_data();
 		if ($data['label'] === '' || $data['contents'] === '')
 			return new BadRequest(_::_('label_and_contents_required'));

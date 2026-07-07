@@ -13,6 +13,10 @@ use PHPFullCalendar\_,
 
 class Sound extends ControllerAbstract
 {
+	protected static array $validation = [
+		'label' => ['/^.{1,255}$/', 'label_required'],
+	];
+
 	private function _checkAlarmRight() : ViewInterface|null
 	{
 		$acl = new ACL(_::getPDO());
@@ -21,7 +25,20 @@ class Sound extends ControllerAbstract
 		return null;
 	}
 
-	// the uploaded file contents and its detected mime type, or null when no file was sent
+	public static function checkSound() : string|null
+	{
+		if (! isset($_FILES['sound']) || $_FILES['sound']['error'] === UPLOAD_ERR_NO_FILE)
+			return null;
+		if ($_FILES['sound']['error'] !== UPLOAD_ERR_OK || ! is_uploaded_file($_FILES['sound']['tmp_name']))
+			return 'sound_upload_failed';
+		if ($_FILES['sound']['size'] > 65535)
+			return 'sound_too_large';
+		$mimetype = (new \finfo(FILEINFO_MIME_TYPE))->file($_FILES['sound']['tmp_name']);
+		if (! str_starts_with($mimetype, 'audio/') && $mimetype !== 'application/ogg')
+			return 'wrong_sound_type';
+		return null;
+	}
+
 	private static function _uploadedSound() : array|null
 	{
 		if (! isset($_FILES['sound']) || ! is_uploaded_file($_FILES['sound']['tmp_name']))
@@ -58,6 +75,10 @@ class Sound extends ControllerAbstract
 	{
 		if (($denied = $this->_checkAlarmRight()) !== null)
 			return $denied;
+		if (($message = $this->_control($_POST)) !== null)
+			return new BadRequest(_::_($message));
+		if (($message = self::checkSound()) !== null)
+			return new BadRequest(_::_($message));
 		$label = trim($_POST['label'] ?? '');
 		if ($label === '')
 			return new BadRequest(_::_('label_required'));
@@ -76,6 +97,10 @@ class Sound extends ControllerAbstract
 		$db = new AlarmDB(_::getPDO());
 		if ($db->getAudio((int) $matches[1]) === false)
 			return new NotFound();
+		if (($message = $this->_control($_POST)) !== null)
+			return new BadRequest(_::_($message));
+		if (($message = self::checkSound()) !== null)
+			return new BadRequest(_::_($message));
 		$label = trim($_POST['label'] ?? '');
 		if ($label === '')
 			return new BadRequest(_::_('label_required'));
