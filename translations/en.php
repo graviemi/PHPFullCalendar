@@ -46,6 +46,7 @@ return [
 	'choose' => '— choose —',
 	'close' => 'close',
 	'color' => 'color',
+	'component_in_use' => 'This item is in use and cannot be deleted',
 	'confirm_delete_acl' => 'Delete this access right?',
 	'confirm_delete_alarm' => 'Delete this alarm?',
 	'confirm_delete_calendar' => 'Delete this calendar and all its events?',

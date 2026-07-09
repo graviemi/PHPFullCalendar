@@ -46,6 +46,7 @@ return [
 	'choose' => '— choisir —',
 	'close' => 'fermer',
 	'color' => 'couleur',
+	'component_in_use' => 'Cet élément est utilisé et ne peut pas être supprimé',
 	'confirm_delete_acl' => 'Supprimer ce droit d\'accès ?',
 	'confirm_delete_alarm' => 'Supprimer cette alerte ?',
 	'confirm_delete_calendar' => 'Supprimer ce calendrier et tous ses événements ?',
