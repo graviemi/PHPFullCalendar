@@ -143,7 +143,10 @@ class Email extends ControllerAbstract
 			return $denied;
 		if (!preg_match('|^(\d+)$|', $this->parameters ?? '', $matches))
 			return new NotFound();
-		(new AlarmDB(_::getPDO()))->deleteEmail((int) $matches[1]);
+		$db = new AlarmDB(_::getPDO());
+		if ($db->isEmailUsed((int) $matches[1]))
+			return new BadRequest(_::_('component_in_use'));
+		$db->deleteEmail((int) $matches[1]);
 		return new Ok();
 	}
 }

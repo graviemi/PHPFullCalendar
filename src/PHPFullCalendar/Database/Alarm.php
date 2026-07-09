@@ -134,6 +134,37 @@ class Alarm extends DatabaseAbstract
 		return $this->_read('description', 'description_id', $description_id);
 	}
 
+	public function isDescriptionUsed(int $description_id) : bool
+	{
+		$stmt = $this->pdo->prepare(
+			'SELECT EXISTS (SELECT 1 FROM display WHERE description_id = :id)
+				OR EXISTS (SELECT 1 FROM email WHERE description_id = :id)'
+		);
+		$stmt->execute([':id' => $description_id]);
+		return (bool) $stmt->fetchColumn();
+	}
+
+	public function isDisplayUsed(int $display_id) : bool
+	{
+		$stmt = $this->pdo->prepare('SELECT EXISTS (SELECT 1 FROM alarm WHERE display_id = :id)');
+		$stmt->execute([':id' => $display_id]);
+		return (bool) $stmt->fetchColumn();
+	}
+
+	public function isEmailUsed(int $email_id) : bool
+	{
+		$stmt = $this->pdo->prepare('SELECT EXISTS (SELECT 1 FROM alarm WHERE email_id = :id)');
+		$stmt->execute([':id' => $email_id]);
+		return (bool) $stmt->fetchColumn();
+	}
+
+	public function isAudioUsed(int $audio_id) : bool
+	{
+		$stmt = $this->pdo->prepare('SELECT EXISTS (SELECT 1 FROM alarm WHERE audio_id = :id)');
+		$stmt->execute([':id' => $audio_id]);
+		return (bool) $stmt->fetchColumn();
+	}
+
 	public function getDescriptions() : array
 	{
 		return $this->pdo->query('SELECT description_id, label FROM description ORDER BY label')->fetchAll(\PDO::FETCH_ASSOC);

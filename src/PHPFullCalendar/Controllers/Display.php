@@ -93,7 +93,10 @@ class Display extends ControllerAbstract
 			return $denied;
 		if (!preg_match('|^(\d+)$|', $this->parameters ?? '', $matches))
 			return new NotFound();
-		(new AlarmDB(_::getPDO()))->deleteDisplay((int) $matches[1]);
+		$db = new AlarmDB(_::getPDO());
+		if ($db->isDisplayUsed((int) $matches[1]))
+			return new BadRequest(_::_('component_in_use'));
+		$db->deleteDisplay((int) $matches[1]);
 		return new Ok();
 	}
 }

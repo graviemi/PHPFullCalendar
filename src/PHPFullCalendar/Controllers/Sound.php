@@ -118,7 +118,10 @@ class Sound extends ControllerAbstract
 			return $denied;
 		if (!preg_match('|^(\d+)$|', $this->parameters ?? '', $matches))
 			return new NotFound();
-		(new AlarmDB(_::getPDO()))->deleteAudio((int) $matches[1]);
+		$db = new AlarmDB(_::getPDO());
+		if ($db->isAudioUsed((int) $matches[1]))
+			return new BadRequest(_::_('component_in_use'));
+		$db->deleteAudio((int) $matches[1]);
 		return new Ok();
 	}
 }
