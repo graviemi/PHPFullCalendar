@@ -23,15 +23,16 @@ CREATE TABLE `alarm` (
   `repeat` int(10) unsigned NOT NULL DEFAULT 0,
   `duration` varchar(255) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL,
   `related` enum('start','end') NOT NULL DEFAULT 'start',
+  `modified` int(10) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`alarm_id`),
   UNIQUE KEY `label` (`label`),
-  KEY `audioFK` (`audio_id`),
   KEY `displayFK` (`display_id`),
   KEY `emailFK` (`email_id`),
-  CONSTRAINT `audioFK` FOREIGN KEY (`audio_id`) REFERENCES `audio` (`audio_id`) ON DELETE SET NULL,
-  CONSTRAINT `displayFK` FOREIGN KEY (`display_id`) REFERENCES `display` (`display_id`) ON DELETE SET NULL,
-  CONSTRAINT `emailFK` FOREIGN KEY (`email_id`) REFERENCES `email` (`email_id`) ON DELETE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+  KEY `audioFK` (`audio_id`),
+  CONSTRAINT `audioFK` FOREIGN KEY (`audio_id`) REFERENCES `audio` (`audio_id`),
+  CONSTRAINT `displayFK` FOREIGN KEY (`display_id`) REFERENCES `display` (`display_id`),
+  CONSTRAINT `emailFK` FOREIGN KEY (`email_id`) REFERENCES `email` (`email_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `audio`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -54,7 +55,7 @@ CREATE TABLE `calendar` (
   `description` text DEFAULT NULL,
   `modified` int(10) unsigned NOT NULL DEFAULT unix_timestamp(),
   PRIMARY KEY (`calendar_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `calendarACL`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -77,6 +78,7 @@ DROP TABLE IF EXISTS `calendarAlarm`;
 CREATE TABLE `calendarAlarm` (
   `calendar_id` int(10) unsigned NOT NULL,
   `alarm_id` int(10) unsigned NOT NULL,
+  `modified` int(10) unsigned NOT NULL DEFAULT 0,
   UNIQUE KEY `calendarAlarm` (`calendar_id`,`alarm_id`),
   KEY `alarmFK` (`alarm_id`),
   CONSTRAINT `alarmFK` FOREIGN KEY (`alarm_id`) REFERENCES `alarm` (`alarm_id`) ON DELETE CASCADE,
@@ -92,7 +94,7 @@ CREATE TABLE `description` (
   `contents` text NOT NULL,
   PRIMARY KEY (`description_id`),
   UNIQUE KEY `label` (`label`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `display`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -101,11 +103,12 @@ CREATE TABLE `display` (
   `display_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `label` varchar(255) NOT NULL,
   `description_id` int(10) unsigned NOT NULL,
+  `modified` int(10) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`display_id`),
   UNIQUE KEY `label` (`label`),
   KEY `descriptionFK` (`description_id`),
-  CONSTRAINT `descriptionFK` FOREIGN KEY (`description_id`) REFERENCES `description` (`description_id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+  CONSTRAINT `descriptionFK` FOREIGN KEY (`description_id`) REFERENCES `description` (`description_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `email`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -115,11 +118,12 @@ CREATE TABLE `email` (
   `label` varchar(255) NOT NULL,
   `summary` varchar(255) NOT NULL,
   `description_id` int(10) unsigned NOT NULL,
+  `modified` int(10) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`email_id`),
   UNIQUE KEY `label` (`label`),
   KEY `emailDescriptionFK` (`description_id`),
-  CONSTRAINT `emailDescriptionFK` FOREIGN KEY (`description_id`) REFERENCES `description` (`description_id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+  CONSTRAINT `emailDescriptionFK` FOREIGN KEY (`description_id`) REFERENCES `description` (`description_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `emailRecipient`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -127,6 +131,7 @@ DROP TABLE IF EXISTS `emailRecipient`;
 CREATE TABLE `emailRecipient` (
   `email_id` int(10) unsigned NOT NULL,
   `recipient_id` int(10) unsigned NOT NULL,
+  `modified` int(10) unsigned NOT NULL DEFAULT 0,
   UNIQUE KEY `emailRecipient` (`email_id`,`recipient_id`),
   KEY `recipient_id` (`recipient_id`),
   CONSTRAINT `emailRecipient_ibfk_1` FOREIGN KEY (`email_id`) REFERENCES `email` (`email_id`) ON DELETE CASCADE,
@@ -154,104 +159,15 @@ CREATE TABLE `event` (
   KEY `calendar_id` (`calendar_id`),
   KEY `title` (`title`),
   CONSTRAINT `event_ibfk_1` FOREIGN KEY (`calendar_id`) REFERENCES `calendar` (`calendar_id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=42 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=46 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
-/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
-/*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb3 */ ;
-/*!50003 SET character_set_results = utf8mb3 */ ;
-/*!50003 SET collation_connection  = utf8mb3_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
-DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `event_before_insert`
-BEFORE INSERT ON `event`
-FOR EACH ROW
-	SET NEW.`modified` = UNIX_TIMESTAMP() */;;
-DELIMITER ;
-/*!50003 SET sql_mode              = @saved_sql_mode */ ;
-/*!50003 SET character_set_client  = @saved_cs_client */ ;
-/*!50003 SET character_set_results = @saved_cs_results */ ;
-/*!50003 SET collation_connection  = @saved_col_connection */ ;
-/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
-/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
-/*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb3 */ ;
-/*!50003 SET character_set_results = utf8mb3 */ ;
-/*!50003 SET collation_connection  = utf8mb3_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
-DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `event_after_insert`
-AFTER INSERT ON `event`
-FOR EACH ROW
-	UPDATE `calendar` SET `modified` = UNIX_TIMESTAMP() WHERE `calendar_id` = NEW.`calendar_id` */;;
-DELIMITER ;
-/*!50003 SET sql_mode              = @saved_sql_mode */ ;
-/*!50003 SET character_set_client  = @saved_cs_client */ ;
-/*!50003 SET character_set_results = @saved_cs_results */ ;
-/*!50003 SET collation_connection  = @saved_col_connection */ ;
-/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
-/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
-/*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb3 */ ;
-/*!50003 SET character_set_results = utf8mb3 */ ;
-/*!50003 SET collation_connection  = utf8mb3_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
-DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `event_before_update`
-BEFORE UPDATE ON `event`
-FOR EACH ROW
-	SET NEW.`modified` = UNIX_TIMESTAMP() */;;
-DELIMITER ;
-/*!50003 SET sql_mode              = @saved_sql_mode */ ;
-/*!50003 SET character_set_client  = @saved_cs_client */ ;
-/*!50003 SET character_set_results = @saved_cs_results */ ;
-/*!50003 SET collation_connection  = @saved_col_connection */ ;
-/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
-/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
-/*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb3 */ ;
-/*!50003 SET character_set_results = utf8mb3 */ ;
-/*!50003 SET collation_connection  = utf8mb3_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
-DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `event_after_update`
-AFTER UPDATE ON `event`
-FOR EACH ROW
-	UPDATE `calendar` SET `modified` = UNIX_TIMESTAMP() WHERE `calendar_id` = NEW.`calendar_id` */;;
-DELIMITER ;
-/*!50003 SET sql_mode              = @saved_sql_mode */ ;
-/*!50003 SET character_set_client  = @saved_cs_client */ ;
-/*!50003 SET character_set_results = @saved_cs_results */ ;
-/*!50003 SET collation_connection  = @saved_col_connection */ ;
-/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
-/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
-/*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb3 */ ;
-/*!50003 SET character_set_results = utf8mb3 */ ;
-/*!50003 SET collation_connection  = utf8mb3_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
-DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `event_after_delete`
-AFTER DELETE ON `event`
-FOR EACH ROW
-	UPDATE `calendar` SET `modified` = UNIX_TIMESTAMP() WHERE `calendar_id` = OLD.`calendar_id` */;;
-DELIMITER ;
-/*!50003 SET sql_mode              = @saved_sql_mode */ ;
-/*!50003 SET character_set_client  = @saved_cs_client */ ;
-/*!50003 SET character_set_results = @saved_cs_results */ ;
-/*!50003 SET collation_connection  = @saved_col_connection */ ;
 DROP TABLE IF EXISTS `eventAlarm`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `eventAlarm` (
   `event_id` int(10) unsigned NOT NULL,
   `alarm_id` int(10) unsigned NOT NULL,
+  `modified` int(10) unsigned NOT NULL DEFAULT 0,
   UNIQUE KEY `eventAlarm` (`event_id`,`alarm_id`),
   KEY `alarm` (`alarm_id`),
   CONSTRAINT `alarm` FOREIGN KEY (`alarm_id`) REFERENCES `alarm` (`alarm_id`) ON DELETE CASCADE,
@@ -278,7 +194,7 @@ CREATE TABLE `recipient` (
   `name` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`recipient_id`),
   UNIQUE KEY `address` (`address`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `resource`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
