@@ -1,6 +1,7 @@
 /notes
 /config.php
 /deploie
+/dump-db.sh
 /rsync-exclude.txt
 /sync.sh
 /logs
@@ -8,6 +9,5 @@
 /php-rrule
 /dependencies
 /PHPFullCalendar.code-workspace
-/src/Twig
 /src/RRule
 /src/oTools
