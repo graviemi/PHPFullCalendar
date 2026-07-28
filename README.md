@@ -2,7 +2,27 @@
 
 Web application for shared calendar management. Frontend based on [FullCalendar.js](https://fullcalendar.io/), PHP backend with a MySQL database.
 
-The application does not handle authentication, groups or user information itself. External sources are required for that, configurable in `config.php`. (Currently only LDAP sources are supported.)
+## What is it for ?
+
+PHPFullCalendar lets a group of people share and manage calendars from a web browser. It is meant for teams and organisations that need a common view of events and want to control precisely who can see or edit what.
+
+Each calendar can be shared with individual users, groups or everyone, and access is granted at several levels: from simply seeing whether a slot is free or busy, through reading and editing events, up to administering the calendar's rights. A separate set of global rights controls who may create or delete calendars and manage resources.
+
+The application does not manage user accounts or passwords itself: authentication, group membership and user information come from your existing directory (LDAP for now), so people sign in with the credentials they already have.
+
+Calendars are not locked inside the application. Any calendar can be exported as a standard ICS feed, so events can be read and displayed from other tools — desktop and mobile calendar clients (Thunderbird, Apple Calendar, Google Calendar…) or any software that understands the iCalendar format. Events are also available as JSON in the format expected by FullCalendar.js, which makes it straightforward to embed a calendar's events in another web application or feed them to a custom frontend. Each request is authenticated, which means read access from external applications still obeys the same per-calendar rights as the web interface.
+
+Typical use cases: booking shared resources, coordinating a team's schedule, or publishing a read-only agenda while letting a few people edit it.
+
+## Install
+
+You must have terminal access to the hosting server.
+
+- Get install.sh :
+	- wget https://github.com/graviemi/PHPFullCalendar/blob/master/install.sh
+	or
+	- curl https://github.com/graviemi/PHPFullCalendar/blob/master/install.sh
+- 
 
 ## Features
 
