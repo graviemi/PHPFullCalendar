@@ -6,7 +6,10 @@
 #   - PHPFullCalendar       -> <installation>/
 #   - php-rrule (src)        -> <installation>/dependencies/php-rrule/
 #   - oTools                 -> <installation>/dependencies/oTools/
-#   - Twig (src)             -> <installation>/dependencies/Twig/
+
+PHPFullCalendarURL="https://github.com/graviemi/PHPFullCalendar/archive/refs/tags/v1.0.0-beta.tar.gz"
+PHPRRuleURL="https://github.com/rlanvin/php-rrule/archive/refs/tags/v2.6.0.tar.gz"
+OTOOLSURL="https://github.com/graviemi/oTools/archive/refs/tags/v0.1.0-beta.tar.gz"
 
 set -euo pipefail
 
@@ -58,6 +61,18 @@ else
 	done
 fi
 
+if command -v curl >/dev/null 2>&1
+then
+	DOWNLOAD=(curl -L)
+	echo "  ✓ curl"
+elif command -v wget >/dev/null 2>&1
+then
+	DOWNLOAD=(wget -O -)
+	echo "  ✓ wget"
+else
+	fail "curl ou wget introuvables"
+fi
+
 if [ "$missing" -ne 0 ]; then
 	echo "Des prérequis sont manquants, installation interrompue." >&2
 	exit 1
@@ -67,39 +82,21 @@ mkdir -p "$1"
 INSTALL=$(cd "$1" && pwd)
 DEPENDENCIES="$INSTALL/dependencies"
 
-# archive <dépôt> <destination> [sous-répertoire]
-# Exporte HEAD du dépôt (ou de son sous-répertoire) dans la destination.
-archive() {
-	local repo=$1 dest=$2 subdir=${3:-}
-	if [ ! -d "$repo/.git" ]; then
-		echo "Dépôt introuvable : $repo" >&2
-		exit 1
-	fi
-	local ref
-	ref=$(git -C "$repo" rev-parse --short HEAD)
-	mkdir -p "$dest"
-	if [ -n "$subdir" ]; then
-		echo "  $repo ($subdir) @ $ref -> $dest"
-		git -C "$repo" archive HEAD "$subdir" | tar -x --strip-components=1 -C "$dest"
-	else
-		echo "  $repo @ $ref -> $dest"
-		git -C "$repo" archive HEAD | tar -x -C "$dest"
-	fi
-}
-
 echo "PHPFullCalendar -> $INSTALL"
-archive "$SOURCE" "$INSTALL"
+"${DOWNLOAD[@]}" $PHPFullCalendarURL | tar xvz -C "$INSTALL" --strip-components=1
 
 echo "Dépendances -> $DEPENDENCIES"
-archive "$SOURCE/php-rrule" "$DEPENDENCIES/php-rrule" src
-archive "$SOURCE/oTools"    "$DEPENDENCIES/oTools"
-archive "$SOURCE/Twig"      "$DEPENDENCIES/Twig" src
+mkdir -p "$DEPENDENCIES/RRule"
+"${DOWNLOAD[@]}" $PHPRRuleURL | tar xvz -C "$DEPENDENCIES/RRule" --strip-components=1
+mkdir -p "$DEPENDENCIES/oTools"
+"${DOWNLOAD[@]}" $OTOOLSURL | tar xvz -C "$DEPENDENCIES/oTools" --strip-components=1
 
 # Liens attendus par l'autoloader (_::load -> <installation>/src/<Namespace>)
 echo "Liens des dépendances dans src/"
-ln -sfn ../dependencies/php-rrule "$INSTALL/src/RRule"
-ln -sfn ../dependencies/oTools    "$INSTALL/src/oTools"
-ln -sfn ../dependencies/Twig      "$INSTALL/src/Twig"
+ln -sfn ../dependencies/RRule/src "$INSTALL/src/RRule"
+ln -sfn ../dependencies/oTools "$INSTALL/src/oTools"
+
+exit 0
 
 # Base de données
 echo
@@ -122,8 +119,9 @@ else
 	if [ "$reply" = o ] || [ "$reply" = O ]; then
 		echo "CREATE DATABASE \`$dbname\` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;" | "${MYSQL[@]}"
 		"${MYSQL[@]}" "$dbname" < "$INSTALL/schema.sql"
+		"${MYSQL[@]}" "$dbname" < "$INSTALL/triggers.sql"
 		created=1
-		echo "Base créée et schéma chargé depuis schema.sql."
+		echo "Base créée, schéma chargé depuis schema.sql et déclencheurs depuis triggers.sql."
 	fi
 fi
 
