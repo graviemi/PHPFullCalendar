@@ -114,6 +114,15 @@ return [
 		],
 	],
 
+	// Email sending backend, used by cron.php (crontab : * * * * * php /path/to/cron.php)
+	// to deliver alarm emails. Backend class under PHPFullCalendar\Emails\.
+	'emails' => [
+		'backend' => 'PHPMail',
+		'parameters' => [
+			'from' => 'calendar@example.com',
+		],
+	],
+
 	// Reverse proxies whose X-Forwarded-For can be trusted to resolve the real
 	// client IP (_::clientIp()). List the IPs of YOUR proxies only. Leave empty
 	// when the app is exposed directly — REMOTE_ADDR is then used as-is.

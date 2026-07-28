@@ -166,6 +166,29 @@ class Calendar extends DatabaseAbstract
 		return $stmt->fetchAll(\PDO::FETCH_ASSOC);
 	}
 
+	public function getEmailAlarms(int $calendar_id) : array
+	{
+		$stmt = $this->pdo->query(
+			'SELECT link.event_id, e.start, e.duration, e.rrule, e.until, e.title,
+				e.description AS event_description, e.location, e.position, e.url,
+				c.name AS calendar_name,
+				a.`trigger`, a.`repeat`, a.duration AS alarm_duration, a.related,
+				a.email_id, em.summary AS email_summary, ed.contents AS email_description
+			FROM (
+				SELECT event_id, alarm_id FROM eventAlarm
+				UNION
+				SELECT e2.event_id, ca.alarm_id
+				FROM calendarAlarm ca JOIN event e2 ON e2.calendar_id = ca.calendar_id
+			) AS link
+			JOIN event e       ON e.event_id = link.event_id
+			JOIN calendar c    ON c.calendar_id = e.calendar_id
+			JOIN alarm a       ON a.alarm_id = link.alarm_id
+			JOIN email em      ON em.email_id = a.email_id
+			JOIN description ed ON ed.description_id = em.description_id'
+		);
+		return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+	}
+
 	public function createEvent(int $calendar_id, array $data) : int
 	{
 		return $this->_create('event', array_merge(['calendar_id' => $calendar_id], $data));
