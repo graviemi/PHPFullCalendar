@@ -42,7 +42,7 @@ class LDAP extends AuthenticationAbstract
 				'user_id' => $login,
 				'source' => $this->source,
 				'informations' => ($this->information === null)?[]:$this->information->get($login),
-				'groups' => ($this->groups === null)?[]:$this->groups->get($login)
+				'groups' => ($this->groups === null)?[]:$this->groups->getGroups($login)
 			]);
 			ldap_unbind($this->connection);
 			return $data;
