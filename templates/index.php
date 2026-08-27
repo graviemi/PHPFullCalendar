@@ -5,7 +5,7 @@ namespace PHPFullCalendar;
 const tabs = "\t\t";
 $sources_options = '';
 foreach (_::$conf['authentication'] as $source => $data)
-	$sources_options .= sprintf('<option value="%s">%s (%s)</option>'.PHP_EOL,$source,$source,$data['method']);
+	$sources_options .= sprintf('<option value="%s">%s</option>'.PHP_EOL,$source,$data['parameters']['source']);
 
 ?><!DOCTYPE html>
 <html>
@@ -23,7 +23,7 @@ foreach (_::$conf['authentication'] as $source => $data)
 		<script type="application/json" id="pfc-config"><?php
 			$pfc_sources = [];
 			foreach (_::$conf['authentication'] as $source => $data)
-				$pfc_sources[] = [$source, sprintf('%s (%s)', $source, $data['method'])];
+				$pfc_sources[] = [$source, sprintf('%s (%s)', $data['parameters']['source'], $data['method'])];
 			echo json_encode(['lang' => _::$language, 'sources' => $pfc_sources]);
 		?></script>
 		<script type="module" src="/public/scripts/PHPFullCalendar.js"></script>
