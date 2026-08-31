@@ -4,6 +4,7 @@ namespace PHPFullCalendar\Database;
 
 use ArrayObject,
 	oTools\Sessions\Session;
+use PDOStatement;
 
 class Calendar extends DatabaseAbstract
 {
@@ -14,6 +15,11 @@ class Calendar extends DatabaseAbstract
 	public function getCalendar(int $calendar_id) : array|false
 	{
 		return $this->_read('calendar', 'calendar_id', $calendar_id);
+	}
+
+	public function getCalendars() : array
+	{
+		return $this->pdo->query('SELECT calendar_id, name, modified FROM calendar ORDER BY calendar_id')->fetchAll(\PDO::FETCH_ASSOC);
 	}
 
 	public function getManagedCalendars(ArrayObject|Session $data, int $level = 3) : array
@@ -166,9 +172,9 @@ class Calendar extends DatabaseAbstract
 		return $stmt->fetchAll(\PDO::FETCH_ASSOC);
 	}
 
-	public function getEmailAlarms(int $calendar_id) : array
+	public function getEmailAlarms(int $calendar_id) : PDOStatement
 	{
-		$stmt = $this->pdo->query(
+		$stmt = $this->pdo->prepare(
 			'SELECT link.event_id, e.start, e.duration, e.rrule, e.until, e.title,
 				e.description AS event_description, e.location, e.position, e.url,
 				c.name AS calendar_name,
@@ -180,13 +186,15 @@ class Calendar extends DatabaseAbstract
 				SELECT e2.event_id, ca.alarm_id
 				FROM calendarAlarm ca JOIN event e2 ON e2.calendar_id = ca.calendar_id
 			) AS link
-			JOIN event e       ON e.event_id = link.event_id
-			JOIN calendar c    ON c.calendar_id = e.calendar_id
-			JOIN alarm a       ON a.alarm_id = link.alarm_id
-			JOIN email em      ON em.email_id = a.email_id
-			JOIN description ed ON ed.description_id = em.description_id'
+			JOIN event e        ON e.event_id = link.event_id
+			JOIN calendar c     ON c.calendar_id = e.calendar_id
+			JOIN alarm a        ON a.alarm_id = link.alarm_id
+			JOIN email em       ON em.email_id = a.email_id
+			JOIN description ed ON ed.description_id = em.description_id
+			WHERE e.calendar_id = :calendar_id'
 		);
-		return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+		$stmt->execute([':calendar_id' => $calendar_id]);
+		return $stmt;
 	}
 
 	public function createEvent(int $calendar_id, array $data) : int

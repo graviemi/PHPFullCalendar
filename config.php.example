@@ -39,15 +39,30 @@ return [
 
 	// Authentication sources — one entry per source
 	// The key is the source name used internally (e.g. in ACL identifiers: "sourcename.login")
-	// Only LDAP is supported for now
+	// Supported methods: LDAP, SQL
 	'authentication' => [
 		'sourcename' => [
 			'method' => 'LDAP',
 			'parameters' => [
+				'source' => 'displayed name',
 				'host'     => 'ldap://ldap.example.com:389',
 				'startTLS' => true,
-				// %s will be replaced by the login entered by the user
-				'bindDN'   => 'uid=%s,ou=people,dc=example,dc=com',
+				'bindDN'   => 'uid=%s,ou=people,dc=example,dc=com', // %s will be replaced by the login entered by the user
+			],
+		],
+		'dbsource' => [
+			'method' => 'SQL',
+			'parameters' => [
+				'source'  => 'displayed name',
+				'driver'  => 'mysql',
+				'host'    => 'localhost',
+				'port'    => 3306,
+				'name'    => 'usersdb',
+				'user'    => 'usersdb',
+				'pass'    => 'secret',
+				'hash'    => 'sha256', // Hashing algorithm applied to the submitted password (see hash_algos())
+				// :id and :hash are bound as prepared-statement parameters
+				'request' => 'SELECT count(*) FROM users WHERE uid = ":id" AND password = ":hash"',
 			],
 		],
 	],
@@ -121,6 +136,11 @@ return [
 		'parameters' => [
 			'from' => 'calendar@example.com',
 		],
+		// Directory holding the per-calendar reminder cache files (reminder-<calendar_id>.txt),
+		// which spare a database lookup on every run. Absolute when starting with '/',
+		// otherwise relative to the project root. Defaults to "reminders".
+		// Must be writable by the user running cron.php.
+		'reminder-dir' => 'reminders',
 	],
 
 	// Reverse proxies whose X-Forwarded-For can be trusted to resolve the real
