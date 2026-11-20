@@ -23,6 +23,7 @@ CREATE TABLE `alarm` (
   `repeat` int(10) unsigned NOT NULL DEFAULT 0,
   `duration` varchar(255) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL,
   `related` enum('start','end') NOT NULL DEFAULT 'start',
+  `offset` int(11) NOT NULL DEFAULT 0,
   `modified` int(10) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`alarm_id`),
   UNIQUE KEY `label` (`label`),

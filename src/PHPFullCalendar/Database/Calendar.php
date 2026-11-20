@@ -172,7 +172,7 @@ class Calendar extends DatabaseAbstract
 		return $stmt->fetchAll(\PDO::FETCH_ASSOC);
 	}
 
-	public function getEmailAlarms(int $calendar_id) : PDOStatement
+	public function getEmailAlarms(int $calendar_id, int $now) : PDOStatement
 	{
 		$stmt = $this->pdo->prepare(
 			'SELECT link.event_id, e.start, e.duration, e.rrule, e.until, e.title,
@@ -191,9 +191,12 @@ class Calendar extends DatabaseAbstract
 			JOIN alarm a        ON a.alarm_id = link.alarm_id
 			JOIN email em       ON em.email_id = a.email_id
 			JOIN description ed ON ed.description_id = em.description_id
-			WHERE e.calendar_id = :calendar_id'
+			WHERE e.calendar_id = :calendar_id
+				AND ((e.rrule IS NOT NULL AND e.rrule <> "" AND e.until = 0)
+					OR CAST(IF(e.rrule IS NULL OR e.rrule = "", e.start, e.until) AS SIGNED)
+						+ IF(a.related = "end", e.duration, 0) + a.`offset` >= :now)'
 		);
-		$stmt->execute([':calendar_id' => $calendar_id]);
+		$stmt->execute([':calendar_id' => $calendar_id, ':now' => $now]);
 		return $stmt;
 	}
 

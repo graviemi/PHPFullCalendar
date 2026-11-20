@@ -56,16 +56,32 @@ class Alarm extends ControllerAbstract
 		};
 	}
 
+	private static function _minutes(int $value, string $unit) : int
+	{
+		return match ($unit) {
+			'W' => $value * 10080,
+			'D' => $value * 1440,
+			'H' => $value * 60,
+			default => $value,
+		};
+	}
+
 	private static function _alarmData() : array
 	{
-		$trigger = self::_duration((int) ($_POST['trigger_value'] ?? 15), $_POST['trigger_unit'] ?? 'M');
+		$triggerValue = (int) ($_POST['trigger_value'] ?? 15);
+		$triggerUnit = $_POST['trigger_unit'] ?? 'M';
+		$sign = ($_POST['trigger_sign'] ?? '-') === '+' ? 1 : -1;
 		$repeat = (int) ($_POST['repeat'] ?? 0);
+		$durationValue = (int) ($_POST['duration_value'] ?? 5);
+		$durationUnit = $_POST['duration_unit'] ?? 'M';
 		return [
 			'label' => trim($_POST['label'] ?? ''),
-			'trigger' => (($_POST['trigger_sign'] ?? '-') === '+' ? '' : '-').$trigger,
+			'trigger' => ($sign < 0 ? '-' : '').self::_duration($triggerValue, $triggerUnit),
 			'repeat' => $repeat,
-			'duration' => $repeat > 0 ? self::_duration((int) ($_POST['duration_value'] ?? 5), $_POST['duration_unit'] ?? 'M') : null,
+			'duration' => $repeat > 0 ? self::_duration($durationValue, $durationUnit) : null,
 			'related' => ($_POST['related'] ?? 'start') === 'end' ? 'end' : 'start',
+			'offset' => $sign * self::_minutes($triggerValue, $triggerUnit)
+				+ ($repeat > 0 ? $repeat * self::_minutes($durationValue, $durationUnit) : 0),
 		];
 	}
 

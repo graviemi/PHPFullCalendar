@@ -162,11 +162,10 @@ foreach ($calendarDb->getCalendars() as $calendar)
 	{
 		$stamp = time();
 		$lines = [];
-		foreach (reminders($calendarDb->getEmailAlarms($calendar_id), intdiv($stamp, 60)) as $line)
+		foreach (reminders($calendarDb->getEmailAlarms($calendar_id, intdiv($stamp, 60)), intdiv($stamp, 60)) as $line)
 			$lines[] = sprintf('%s %d %d %s', gmdate('Y-m-d\TH:i:s\Z', $line[0] * 60), $line[1], $line[2], gmdate('Y-m-d\TH:i:s\Z', $line[3] * 60));
 		if ($lines === [])
 			$lines[] = 'empty';
-		print_r($lines);
 		if (file_put_contents($file, implode(PHP_EOL, $lines).PHP_EOL) === false)
 		{
 			fwrite(STDERR, sprintf('unable to write reminder file "%s"%s', $file, PHP_EOL));
