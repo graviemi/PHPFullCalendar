@@ -206,6 +206,7 @@ CREATE TABLE `resource` (
   `description` text DEFAULT NULL,
   `calendar_id` int(10) unsigned NOT NULL,
   `resourceType_id` int(10) unsigned NOT NULL,
+  `pool_id` int(10) unsigned NOT NULL,
   `data` text DEFAULT NULL,
   PRIMARY KEY (`resource_id`),
   UNIQUE KEY `calendar_id` (`calendar_id`),
@@ -219,8 +220,21 @@ CREATE TABLE `resourceAttribut` (
   `resourceAttribut_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `resourceType_id` int(10) unsigned NOT NULL,
   `name` varchar(255) NOT NULL,
+  `type` tinyint(3) unsigned NOT NULL DEFAULT 0,
+  `mandatory` tinyint(1) NOT NULL DEFAULT 1,
+  `constraints` text DEFAULT NULL,
   PRIMARY KEY (`resourceAttribut_id`),
   UNIQUE KEY `resourceType_id` (`resourceType_id`,`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `resourcePool`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `resourcePool` (
+  `pool_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL,
+  PRIMARY KEY (`pool_id`),
+  UNIQUE KEY `name` (`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `resourceType`;
@@ -240,11 +254,11 @@ CREATE TABLE `ressourceACL` (
   `identifier` varchar(255) NOT NULL,
   `type` enum('user','group','special') NOT NULL DEFAULT 'user',
   `authorization` tinyint(3) unsigned NOT NULL,
-  `ressource_id` int(10) unsigned NOT NULL,
-  UNIQUE KEY `right` (`identifier`,`type`,`ressource_id`) USING BTREE,
+  `pool_id` int(10) unsigned NOT NULL,
+  UNIQUE KEY `right` (`identifier`,`type`,`pool_id`) USING BTREE,
   KEY `who` (`identifier`,`type`) USING BTREE,
-  KEY `what` (`ressource_id`),
-  CONSTRAINT `ressourceACL_ibfk_1` FOREIGN KEY (`ressource_id`) REFERENCES `resource` (`resource_id`) ON DELETE CASCADE
+  KEY `what` (`pool_id`),
+  CONSTRAINT `ressourceACL_ibfk_1` FOREIGN KEY (`pool_id`) REFERENCES `resourcePool` (`pool_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
