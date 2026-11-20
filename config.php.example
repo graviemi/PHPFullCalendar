@@ -62,7 +62,7 @@ return [
 				'pass'    => 'secret',
 				'hash'    => 'sha256', // Hashing algorithm applied to the submitted password (see hash_algos())
 				// :id and :hash are bound as prepared-statement parameters
-				'request' => 'SELECT count(*) FROM users WHERE uid = ":id" AND password = ":hash"',
+				'request' => 'SELECT count(*) FROM users WHERE uid = :id AND password = :hash',
 			],
 		],
 	],
@@ -134,7 +134,8 @@ return [
 	'emails' => [
 		'backend' => 'PHPMail',
 		'parameters' => [
-			'from' => 'calendar@example.com',
+			'from-address' => 'calendar@example.com',
+			'from-name' => 'PHPFullCalendar',
 		],
 		// Directory holding the per-calendar reminder cache files (reminder-<calendar_id>.txt),
 		// which spare a database lookup on every run. Absolute when starting with '/',
