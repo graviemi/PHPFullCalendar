@@ -28,7 +28,7 @@ return [
 	// External JS scripts loaded in <head> before the local PHPFullCalendar.js.
 	// Order matters: rrule before FullCalendar, FullCalendar before its rrule connector, SweetAlert before PHPFullCalendar.
 	'scripts' => [
-		'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js',
+		'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js',
 		'https://cdn.jsdelivr.net/npm/ical.js@1.5.0/build/ical.min.js',
 		'https://cdn.jsdelivr.net/npm/rrule@2.6.4/dist/es5/rrule.min.js',
 		'https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js',
