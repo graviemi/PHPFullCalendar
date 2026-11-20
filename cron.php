@@ -22,7 +22,10 @@ spl_autoload_register(function (string $class) use ($root) {
 date_default_timezone_set($conf['timezone'] ?? 'Europe/Paris');
 
 if (! isset($conf['emails']))
+{
+	fwrite(STDERR, 'email configuration missing'.PHP_EOL);
 	exit(0);
+}
 $backend = sprintf('PHPFullCalendar\\Emails\\%s', $conf['emails']['backend']);
 if (! class_exists($backend))
 {
