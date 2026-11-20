@@ -33,7 +33,7 @@ CREATE TABLE `alarm` (
   CONSTRAINT `audioFK` FOREIGN KEY (`audio_id`) REFERENCES `audio` (`audio_id`),
   CONSTRAINT `displayFK` FOREIGN KEY (`display_id`) REFERENCES `display` (`display_id`),
   CONSTRAINT `emailFK` FOREIGN KEY (`email_id`) REFERENCES `email` (`email_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `audio`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -56,7 +56,7 @@ CREATE TABLE `calendar` (
   `description` text DEFAULT NULL,
   `modified` int(10) unsigned NOT NULL DEFAULT unix_timestamp(),
   PRIMARY KEY (`calendar_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `calendarACL`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -95,7 +95,7 @@ CREATE TABLE `description` (
   `contents` text NOT NULL,
   PRIMARY KEY (`description_id`),
   UNIQUE KEY `label` (`label`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `display`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -109,7 +109,7 @@ CREATE TABLE `display` (
   UNIQUE KEY `label` (`label`),
   KEY `descriptionFK` (`description_id`),
   CONSTRAINT `descriptionFK` FOREIGN KEY (`description_id`) REFERENCES `description` (`description_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `email`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -124,7 +124,7 @@ CREATE TABLE `email` (
   UNIQUE KEY `label` (`label`),
   KEY `emailDescriptionFK` (`description_id`),
   CONSTRAINT `emailDescriptionFK` FOREIGN KEY (`description_id`) REFERENCES `description` (`description_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `emailRecipient`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -160,7 +160,7 @@ CREATE TABLE `event` (
   KEY `calendar_id` (`calendar_id`),
   KEY `title` (`title`),
   CONSTRAINT `event_ibfk_1` FOREIGN KEY (`calendar_id`) REFERENCES `calendar` (`calendar_id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=46 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `eventAlarm`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -195,7 +195,7 @@ CREATE TABLE `recipient` (
   `name` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`recipient_id`),
   UNIQUE KEY `address` (`address`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `resource`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
