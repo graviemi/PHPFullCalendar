@@ -4,12 +4,18 @@ namespace PHPFullCalendar\Emails;
 
 class PHPMail implements EmailInterface
 {
-	protected string|null $from;
+	protected string|null $from = null;
 	protected array $destinations = [];
 
 	public function __construct(array $parameters = [])
 	{
-		$this->from = $parameters['from'] ?? null;
+		if (isset($parameters['from-address']))
+		{
+			if (isset($parameters['from-name']))
+				$this->from = sprintf('%s <%s>',$parameters['from-name'],$parameters['from-address']);
+			else
+				$this->from = $parameters['from-address'];
+		}
 	}
 
 	public function AddDestination(string $address, string|null $name = null)
