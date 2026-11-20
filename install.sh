@@ -83,24 +83,22 @@ INSTALL=$(cd "$1" && pwd)
 DEPENDENCIES="$INSTALL/dependencies"
 
 echo "PHPFullCalendar -> $INSTALL"
-"${DOWNLOAD[@]}" $PHPFullCalendarURL | tar xvz -C "$INSTALL" --strip-components=1
+"${DOWNLOAD[@]}" $PHPFullCalendarURL | tar xz -C "$INSTALL" --strip-components=1
 
 echo "Dépendances -> $DEPENDENCIES"
 mkdir -p "$DEPENDENCIES/RRule"
-"${DOWNLOAD[@]}" $PHPRRuleURL | tar xvz -C "$DEPENDENCIES/RRule" --strip-components=1
+"${DOWNLOAD[@]}" $PHPRRuleURL | tar xz -C "$DEPENDENCIES/RRule" --strip-components=1
 mkdir -p "$DEPENDENCIES/oTools"
-"${DOWNLOAD[@]}" $OTOOLSURL | tar xvz -C "$DEPENDENCIES/oTools" --strip-components=1
+"${DOWNLOAD[@]}" $OTOOLSURL | tar xz -C "$DEPENDENCIES/oTools" --strip-components=1
 
 # Liens attendus par l'autoloader (_::load -> <installation>/src/<Namespace>)
 echo "Liens des dépendances dans src/"
 ln -sfn ../dependencies/RRule/src "$INSTALL/src/RRule"
 ln -sfn ../dependencies/oTools "$INSTALL/src/oTools"
 
-exit 0
-
 # Base de données
 echo
-echo "Base de données"
+echo "Database creation"
 
 read -rp "Utiliser sudo pour les connexions MySQL ? [o/N] " reply
 if [ "$reply" = o ] || [ "$reply" = O ]; then
