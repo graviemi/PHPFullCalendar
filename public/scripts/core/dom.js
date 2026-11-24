@@ -18,7 +18,7 @@ export function getModal(name)
 		return null;
 	}
 	if (! _modals.hasOwnProperty(name))
-		_modals[name] = new bootstrap.Modal(element);
+		_modals[name] = bootstrap.Modal.getOrCreateInstance(element);
 	return _modals[name];
 }
 
