@@ -104,7 +104,7 @@ function construct(lang,sources)
 	const self = this;
 	// toolbar tooltips (titles are server-side translated ; Popper via bootstrap.bundle)
 	for (const button of document.querySelectorAll('nav .btn[title]'))
-		new bootstrap.Tooltip(button);
+		new bootstrap.Tooltip(button, { placement: 'bottom' });
 	fetch('/index/translations',{}).then(async function (response)
 	{
 		if (response.ok)
