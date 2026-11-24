@@ -50,7 +50,7 @@ class SQL extends AuthenticationAbstract
 		}
 		return new ArrayObject([
 			'user_id' => $login,
-			'source' => $this->parameters['source'] ?? $this->source,
+			'source' => $this->source,
 			'informations' => ($this->information === null)?[]:$this->information->get($login),
 			'groups' => ($this->groups === null)?[]:$this->groups->getGroups($login)
 		]);
