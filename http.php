@@ -258,7 +258,7 @@ class _
 		// get authorization data when no session access
 		if (self::$noSession)
 		{
-			if ($verb !== 'GET' && $verb !== 'HEAD')
+			if ($verb !== 'get' && $verb !== 'head')
 			{
 				header('HTTP/1.1 403 Forbidden');
 				return;
